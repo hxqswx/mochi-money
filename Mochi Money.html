@@ -545,13 +545,6 @@ function IOSDevice({ children, width = 402, height = 874, dark = false }) {
       fontFamily: '-apple-system, system-ui, sans-serif',
       WebkitFontSmoothing: 'antialiased',
     }}>
-      <div style={{
-        position: 'absolute', top: 11, left: '50%', transform: 'translateX(-50%)',
-        width: 126, height: 37, borderRadius: 24, background: '#000', zIndex: 50,
-      }} />
-      <div style={{ position: 'absolute', top: 0, left: 0, right: 0, zIndex: 10 }}>
-        <IOSStatusBar dark={dark} />
-      </div>
       <div style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
         <div style={{ flex: 1, overflow: 'auto' }}>{children}</div>
       </div>
@@ -837,7 +830,7 @@ function Toast({ show, palette, onHide }) {
 // ─────────────────────────────────────────────────────────────
 // HOME SCREEN
 // ─────────────────────────────────────────────────────────────
-function HomeScreen({ palette, tweaks, members }) {
+function HomeScreen({ palette, tweaks, members, onNotif, onSettings, onViewAll }) {
   const totalBudget = members.reduce((a, f) => a + f.budget, 0);
   const totalSpent  = members.reduce((a, f) => a + f.spent,  0);
   const remaining = totalBudget - totalSpent;
@@ -862,8 +855,8 @@ function HomeScreen({ palette, tweaks, members }) {
           </div>
         </div>
         <div style={{ display: "flex", gap: 8 }}>
-          <button style={iconBtn}>🔔</button>
-          <button style={iconBtn}>⚙️</button>
+          <button style={iconBtn} onClick={onNotif}>🔔</button>
+          <button style={iconBtn} onClick={onSettings}>⚙️</button>
         </div>
       </div>
 
@@ -959,7 +952,7 @@ function HomeScreen({ palette, tweaks, members }) {
         })}
       </div>
 
-      <SectionHeader title="最近的小账" right={<span style={{ fontSize: 12, fontWeight: 700, color: palette.primaryDeep }}>查看全部 →</span>} />
+      <SectionHeader title="最近的小账" right={<span onClick={onViewAll} style={{ fontSize: 12, fontWeight: 700, color: palette.primaryDeep, cursor: "pointer" }}>查看全部 →</span>} />
       <Card color="#FFF" style={{ padding: 0, overflow: "hidden" }}>
         {RECENT.slice(0, 5).map((r, i) => (
           <div key={r.id} style={{
@@ -1023,7 +1016,24 @@ function AddScreen({ palette, tweaks, onSave, members }) {
         <div style={{ fontSize: 11, fontWeight: 800, color: "#1a1410", opacity: 0.65, textTransform: "uppercase", letterSpacing: 1 }}>金额</div>
         <div style={{ display: "flex", alignItems: "baseline", justifyContent: "center", gap: 4, marginTop: 6 }}>
           <span style={{ fontFamily: "Fredoka, sans-serif", fontSize: 32, fontWeight: 600, color: "#1a1410" }}>¥</span>
-          <span style={{ fontFamily: "Fredoka, sans-serif", fontSize: 56, fontWeight: 600, color: "#1a1410", lineHeight: 1 }}>{amount}</span>
+          <input
+            type="text"
+            inputMode="decimal"
+            value={amount}
+            onChange={e => {
+              const v = e.target.value.replace(/[^0-9.]/g, "");
+              const parts = v.split(".");
+              if (parts.length > 2) return;
+              if (parts[1]?.length > 2) return;
+              setAmount(v === "" ? "0" : v);
+            }}
+            style={{
+              fontFamily: "Fredoka, sans-serif", fontSize: 56, fontWeight: 600,
+              color: "#1a1410", lineHeight: 1, background: "transparent",
+              border: "none", outline: "none", width: "5ch", minWidth: 80,
+              textAlign: "left", padding: 0,
+            }}
+          />
         </div>
       </Card>
 
@@ -1115,7 +1125,30 @@ function AddScreen({ palette, tweaks, onSave, members }) {
 // ─────────────────────────────────────────────────────────────
 // GOALS SCREEN
 // ─────────────────────────────────────────────────────────────
+const GOAL_CREATURES = ["Zoomi","Cozy","Pip","Yumi","Heart","Boba","Posy","Elephant"];
+const GOAL_COLORS = ["#A8D8F0","#B8E0B5","#FFE08A","#FFB59E","#FFB5C5","#F9C9A8","#F2B8DC","#FFAAAA"];
+
 function GoalsScreen({ palette }) {
+  const [goals, setGoals] = React.useState(GOALS);
+  const [adding, setAdding] = React.useState(false);
+  const [newName, setNewName] = React.useState("");
+  const [newTarget, setNewTarget] = React.useState("");
+  const [newCreature, setNewCreature] = React.useState("Zoomi");
+  const [newColor, setNewColor] = React.useState("#A8D8F0");
+
+  const removeGoal = (id) => setGoals(gs => gs.filter(g => g.id !== id));
+
+  const saveGoal = () => {
+    const t = parseFloat(newTarget);
+    if (!newName.trim() || isNaN(t) || t <= 0) return;
+    setGoals(gs => [...gs, {
+      id: Date.now(), name: newName.trim(), target: t, saved: 0,
+      creature: newCreature, color: newColor, days: 90,
+    }]);
+    setAdding(false);
+    setNewName(""); setNewTarget(""); setNewCreature("Zoomi"); setNewColor("#A8D8F0");
+  };
+
   return (
     <div style={{ padding: "8px 16px 110px", position: "relative", zIndex: 1 }}>
       <div style={{ marginTop: 8, marginBottom: 14 }}>
@@ -1127,10 +1160,10 @@ function GoalsScreen({ palette }) {
         <div style={{ flex: 1 }}>
           <div style={{ fontSize: 11, fontWeight: 800, color: "#1a1410", opacity: 0.65, textTransform: "uppercase", letterSpacing: 0.5 }}>已存</div>
           <div style={{ fontFamily: "Fredoka, sans-serif", fontSize: 36, fontWeight: 600, color: "#1a1410", lineHeight: 1 }}>
-            {yuan(GOALS.reduce((a, g) => a + g.saved, 0), 0)}
+            {yuan(goals.reduce((a, g) => a + g.saved, 0), 0)}
           </div>
           <div style={{ fontSize: 12, color: "#1a1410", opacity: 0.7, fontWeight: 700, marginTop: 4 }}>
-            离目标还差 {yuan(GOALS.reduce((a, g) => a + (g.target - g.saved), 0), 0)}
+            离目标还差 {yuan(goals.reduce((a, g) => a + (g.target - g.saved), 0), 0)}
           </div>
         </div>
         <div style={{ display: "flex", alignItems: "center" }}>
@@ -1140,7 +1173,7 @@ function GoalsScreen({ palette }) {
         </div>
       </Card>
 
-      {GOALS.map(g => {
+      {goals.map(g => {
         const pct = (g.saved / g.target) * 100;
         return (
           <Card key={g.id} color="#FFF" style={{ marginBottom: 12, padding: 14 }}>
@@ -1163,22 +1196,83 @@ function GoalsScreen({ palette }) {
                   </span>
                 </div>
               </div>
-              <Chip color={g.color}>{g.days} 天</Chip>
+              <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 6 }}>
+                <Chip color={g.color}>{g.days} 天</Chip>
+                <button onClick={() => removeGoal(g.id)} style={{
+                  background: "none", border: "1.5px solid rgba(26,20,16,0.25)", borderRadius: 8,
+                  width: 24, height: 24, cursor: "pointer", fontSize: 14, color: "rgba(26,20,16,0.45)",
+                  display: "flex", alignItems: "center", justifyContent: "center", padding: 0,
+                }}>×</button>
+              </div>
             </div>
             <Progress value={pct} color={g.color} height={14} />
             <div style={{ display: "flex", justifyContent: "space-between", marginTop: 6, fontSize: 11, fontWeight: 700, color: "rgba(26,20,16,0.6)" }}>
               <span>{pct.toFixed(0)}% 完成</span>
-              <span>每天存 {yuan((g.target - g.saved) / g.days, 0)} 就行</span>
+              <span>{g.days > 0 ? `每天存 ${yuan((g.target - g.saved) / g.days, 0)} 就行` : "🎉 完成啦"}</span>
             </div>
           </Card>
         );
       })}
 
-      <div style={{
-        marginTop: 8, padding: "14px 16px", borderRadius: 18,
-        border: "2px dashed #1a1410", textAlign: "center",
-        color: "#1a1410", fontWeight: 800, fontSize: 14, cursor: "pointer",
-      }}>+ 添加新目标</div>
+      {adding ? (
+        <Card color="#FFF" style={{ padding: 16, marginTop: 8 }}>
+          <div style={{ fontWeight: 800, fontSize: 15, color: "#1a1410", marginBottom: 12 }}>新目标</div>
+          <input
+            placeholder="目标名称"
+            value={newName}
+            onChange={e => setNewName(e.target.value)}
+            style={{
+              width: "100%", boxSizing: "border-box", padding: "10px 12px",
+              borderRadius: 12, border: "2px solid #1a1410", boxShadow: "0 2px 0 #1a1410",
+              fontSize: 14, fontFamily: "inherit", fontWeight: 600,
+              background: "#FFF", color: "#1a1410", outline: "none", marginBottom: 10,
+            }}
+          />
+          <input
+            placeholder="目标金额 (¥)"
+            type="number"
+            value={newTarget}
+            onChange={e => setNewTarget(e.target.value)}
+            style={{
+              width: "100%", boxSizing: "border-box", padding: "10px 12px",
+              borderRadius: 12, border: "2px solid #1a1410", boxShadow: "0 2px 0 #1a1410",
+              fontSize: 14, fontFamily: "inherit", fontWeight: 600,
+              background: "#FFF", color: "#1a1410", outline: "none", marginBottom: 10,
+            }}
+          />
+          <div style={{ fontSize: 12, fontWeight: 800, color: "rgba(26,20,16,0.6)", marginBottom: 6 }}>选小怪兽</div>
+          <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 12 }}>
+            {GOAL_CREATURES.map((c, i) => (
+              <div key={c} onClick={() => { setNewCreature(c); setNewColor(GOAL_COLORS[i]); }} style={{
+                width: 44, height: 44, borderRadius: 12,
+                background: newCreature === c ? GOAL_COLORS[i] : "#F5F5F5",
+                border: newCreature === c ? "2px solid #1a1410" : "2px solid transparent",
+                display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer",
+              }}>
+                <Mascot name={c} size={36} />
+              </div>
+            ))}
+          </div>
+          <div style={{ display: "flex", gap: 8 }}>
+            <button onClick={() => setAdding(false)} style={{
+              flex: 1, padding: "12px 0", borderRadius: 14,
+              border: "2px solid #1a1410", boxShadow: "0 2px 0 #1a1410",
+              background: "#FFF", fontSize: 14, fontWeight: 800, cursor: "pointer",
+            }}>取消</button>
+            <button onClick={saveGoal} style={{
+              flex: 2, padding: "12px 0", borderRadius: 14,
+              border: "2px solid #1a1410", boxShadow: "0 3px 0 #1a1410",
+              background: palette.primaryDeep, fontSize: 14, fontWeight: 800, cursor: "pointer",
+            }}>保存目标 ✨</button>
+          </div>
+        </Card>
+      ) : (
+        <div onClick={() => setAdding(true)} style={{
+          marginTop: 8, padding: "14px 16px", borderRadius: 18,
+          border: "2px dashed #1a1410", textAlign: "center",
+          color: "#1a1410", fontWeight: 800, fontSize: 14, cursor: "pointer",
+        }}>+ 添加新目标</div>
+      )}
     </div>
   );
 }
@@ -1505,10 +1599,42 @@ function blendColor(hex, alpha) {
 // ─────────────────────────────────────────────────────────────
 // MAIN APP
 // ─────────────────────────────────────────────────────────────
+const NOTIFS = [
+  { icon: "🎉", title: "目标快完成啦！", body: "新冰箱储蓄已达 90%，再攒 ¥680 就到啦", time: "刚刚" },
+  { icon: "⚠️", title: "爸爸超支提醒", body: "本月支出已达预算的 75%，注意一下哦", time: "2小时前" },
+  { icon: "🛒", title: "妈妈记了一笔", body: "食物超市 ¥186.50", time: "今天 18:42" },
+  { icon: "💰", title: "本周支出汇总", body: "家庭本周共花了 ¥1,480，在预算内 ✓", time: "昨天" },
+];
+
+function PhoneOverlay({ open, onClose, title, children, maxHeight = "88%" }) {
+  if (!open) return null;
+  return (
+    <div style={{
+      position: "absolute", top: 0, left: 0, right: 0, bottom: 0, zIndex: 300,
+      background: "rgba(26,20,16,0.38)", display: "flex", flexDirection: "column", justifyContent: "flex-end",
+    }} onClick={e => { if (e.target === e.currentTarget) onClose(); }}>
+      <div style={{
+        background: "#FFF6E9", borderRadius: "24px 24px 0 0",
+        border: "2px solid #1a1410", borderBottom: "none",
+        boxShadow: "0 -8px 32px rgba(26,20,16,0.14)",
+        display: "flex", flexDirection: "column", maxHeight,
+      }}>
+        <div style={{ width: 40, height: 5, borderRadius: 100, background: "rgba(26,20,16,0.2)", margin: "10px auto 0" }} />
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "14px 18px 10px" }}>
+          <div style={{ fontFamily: "Fredoka, sans-serif", fontSize: 20, fontWeight: 600 }}>{title}</div>
+          <button onClick={onClose} style={{ background: "none", border: "none", fontSize: 20, cursor: "pointer", color: "rgba(26,20,16,0.45)", lineHeight: 1, padding: 0 }}>✕</button>
+        </div>
+        <div style={{ overflowY: "auto", flex: 1 }}>{children}</div>
+      </div>
+    </div>
+  );
+}
+
 function App() {
   const [t, setTweak] = useTweaks(TWEAK_DEFAULTS);
   const [tab, setTab] = React.useState("home");
   const [toast, setToast] = React.useState(false);
+  const [overlay, setOverlay] = React.useState(null);
   const palette = PALETTES[t.palette] || PALETTES.taro;
 
   const [memberCustom, setMemberCustom] = React.useState({
@@ -1525,7 +1651,10 @@ function App() {
   }));
 
   const screens = {
-    home:     <HomeScreen palette={palette} tweaks={t} members={members} />,
+    home:     <HomeScreen palette={palette} tweaks={t} members={members}
+                onNotif={() => setOverlay("notif")}
+                onSettings={() => setOverlay("settings")}
+                onViewAll={() => setOverlay("viewAll")} />,
     add:      <AddScreen palette={palette} tweaks={t} members={members} onSave={() => { setToast(true); setTab("home"); }} />,
     goals:    <GoalsScreen palette={palette} tweaks={t} />,
     family:   <FamilyScreen palette={palette} tweaks={t} members={members} setMemberCustom={setMemberCustom} />,
@@ -1552,13 +1681,89 @@ function App() {
             background: `linear-gradient(180deg, ${palette.bg} 0%, ${palette.bg2} 100%)`,
             position: "relative",
           }}>
-            <div style={{ paddingTop: 56, position: "relative", zIndex: 1, minHeight: "100%" }}>
+            <div style={{ paddingTop: 12, position: "relative", zIndex: 1, minHeight: "100%" }}>
               <StickerLayer palette={palette} show={t.showStickers} />
               {screens[tab]}
             </div>
           </div>
           <TabBar active={tab} onTab={setTab} palette={palette} />
           <Toast show={toast} palette={palette} onHide={() => setToast(false)} />
+
+          {/* Notification panel */}
+          <PhoneOverlay open={overlay === "notif"} onClose={() => setOverlay(null)} title="通知">
+            <div style={{ padding: "0 14px 24px", display: "flex", flexDirection: "column", gap: 10 }}>
+              {NOTIFS.map((n, i) => (
+                <div key={i} style={{
+                  background: "#FFF", border: "2px solid #1a1410", borderRadius: 16,
+                  boxShadow: "0 2px 0 #1a1410", padding: "12px 14px",
+                  display: "flex", gap: 12, alignItems: "flex-start",
+                }}>
+                  <div style={{ fontSize: 24, lineHeight: 1, marginTop: 2 }}>{n.icon}</div>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontWeight: 800, fontSize: 13, color: "#1a1410" }}>{n.title}</div>
+                    <div style={{ fontSize: 12, color: "rgba(26,20,16,0.6)", fontWeight: 600, marginTop: 2 }}>{n.body}</div>
+                    <div style={{ fontSize: 11, color: "rgba(26,20,16,0.4)", fontWeight: 600, marginTop: 4 }}>{n.time}</div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </PhoneOverlay>
+
+          {/* Settings panel */}
+          <PhoneOverlay open={overlay === "settings"} onClose={() => setOverlay(null)} title="设置">
+            <div style={{ padding: "0 14px 32px", display: "flex", flexDirection: "column", gap: 8 }}>
+              {[
+                { icon: "🎨", label: "外观主题", desc: "在右侧 Tweaks 面板调整配色" },
+                { icon: "👨‍👩‍👧‍👦", label: "家庭成员", desc: "在「家人」标签页修改昵称和形象" },
+                { icon: "🔔", label: "通知提醒", desc: "超支提醒 · 目标进度 · 每周汇总" },
+                { icon: "💾", label: "数据备份", desc: "数据存储在本地，刷新后保留" },
+                { icon: "🌐", label: "语言", desc: "简体中文" },
+              ].map((s, i) => (
+                <div key={i} style={{
+                  background: "#FFF", border: "2px solid #1a1410", borderRadius: 16,
+                  boxShadow: "0 2px 0 #1a1410", padding: "12px 14px",
+                  display: "flex", gap: 12, alignItems: "center",
+                }}>
+                  <div style={{ fontSize: 22, width: 36, textAlign: "center" }}>{s.icon}</div>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontWeight: 800, fontSize: 14, color: "#1a1410" }}>{s.label}</div>
+                    <div style={{ fontSize: 12, color: "rgba(26,20,16,0.55)", fontWeight: 600 }}>{s.desc}</div>
+                  </div>
+                  <div style={{ color: "rgba(26,20,16,0.3)", fontSize: 16 }}>›</div>
+                </div>
+              ))}
+            </div>
+          </PhoneOverlay>
+
+          {/* View all transactions panel */}
+          <PhoneOverlay open={overlay === "viewAll"} onClose={() => setOverlay(null)} title="全部账单" maxHeight="92%">
+            <div style={{ padding: "0 14px 28px" }}>
+              <Card color="#FFF" style={{ padding: 0, overflow: "hidden" }}>
+                {RECENT.map((r, i) => (
+                  <div key={r.id} style={{
+                    display: "flex", alignItems: "center", gap: 12, padding: "12px 14px",
+                    borderBottom: i < RECENT.length - 1 ? "1.5px dashed rgba(26,20,16,0.12)" : "none",
+                  }}>
+                    <div style={{
+                      width: 40, height: 40, borderRadius: 12, background: r.color,
+                      border: "2px solid #1a1410", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0,
+                    }}>
+                      <Mascot name={r.creature} size={34} />
+                    </div>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontWeight: 800, fontSize: 13, color: "#1a1410" }}>{r.cat}</div>
+                      <div style={{ fontSize: 11, color: "rgba(26,20,16,0.55)", fontWeight: 600 }}>
+                        {members.find(f => f.id === r.familyId)?.name} · {r.time}{r.note && ` · ${r.note}`}
+                      </div>
+                    </div>
+                    <div style={{ fontFamily: "Fredoka, sans-serif", fontSize: 16, fontWeight: 600, color: "#1a1410", flexShrink: 0 }}>
+                      -{yuan(r.amount)}
+                    </div>
+                  </div>
+                ))}
+              </Card>
+            </div>
+          </PhoneOverlay>
         </IOSDevice>
       </div>
 
