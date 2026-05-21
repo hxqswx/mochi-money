@@ -1,0 +1,1493 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Mochi Money · 家庭小账本</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&family=Nunito:wght@500;700;800;900&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; min-height: 100%; }
+  body {
+    font-family: "Nunito", system-ui, -apple-system, sans-serif;
+    color: #1a1410;
+    background:
+      radial-gradient(circle at 15% 20%, #FFE9D6 0%, transparent 38%),
+      radial-gradient(circle at 85% 80%, #E8D6FF 0%, transparent 38%),
+      radial-gradient(circle at 50% 50%, #FFF6E9 0%, #FFE9F0 100%);
+    background-attachment: fixed;
+    min-height: 100vh;
+  }
+  body::before {
+    content: ""; position: fixed; inset: 0; pointer-events: none; z-index: 0;
+    background-image:
+      radial-gradient(rgba(26,20,16,0.07) 1px, transparent 1px),
+      radial-gradient(rgba(26,20,16,0.07) 1px, transparent 1px);
+    background-size: 32px 32px, 32px 32px;
+    background-position: 0 0, 16px 16px;
+    opacity: 0.6;
+  }
+  @keyframes wave {
+    0%, 60%, 100% { transform: rotate(0deg); }
+    10% { transform: rotate(14deg); }
+    20% { transform: rotate(-8deg); }
+    30% { transform: rotate(14deg); }
+    40% { transform: rotate(-4deg); }
+    50% { transform: rotate(10deg); }
+  }
+  @keyframes bob {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-4px); }
+  }
+  @keyframes pop {
+    0% { transform: scale(0.7); opacity: 0; }
+    60% { transform: scale(1.08); opacity: 1; }
+    100% { transform: scale(1); }
+  }
+  .pop-in { animation: pop 280ms cubic-bezier(.34,1.56,.64,1); }
+  .phone-scroll::-webkit-scrollbar { width: 0; height: 0; }
+  .phone-scroll { scrollbar-width: none; }
+  .stage {
+    min-height: 100vh; width: 100%;
+    display: flex; align-items: center; justify-content: center;
+    padding: 32px 16px; position: relative; z-index: 1;
+  }
+  .title-block { position: absolute; user-select: none; pointer-events: none; }
+  .title-block .ko {
+    font-family: "Fredoka", sans-serif; font-weight: 600;
+    color: #1a1410; line-height: 0.95; letter-spacing: -0.01em;
+  }
+  .title-block .sub {
+    font-family: "Nunito", sans-serif; font-weight: 800;
+    color: rgba(26,20,16,0.55); margin-top: 8px;
+  }
+  @media (max-width: 920px) {
+    .side-deco { display: none !important; }
+  }
+</style>
+</head>
+<body>
+
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" crossorigin="anonymous"></script>
+
+<div id="root"></div>
+
+<script type="text/babel">
+// ─────────────────────────────────────────────────────────────
+// TWEAKS PANEL
+// ─────────────────────────────────────────────────────────────
+const __TWEAKS_STYLE = `
+  .twk-panel{position:fixed;right:16px;bottom:16px;z-index:2147483646;width:280px;
+    max-height:calc(100vh - 32px);display:flex;flex-direction:column;
+    transform:scale(var(--dc-inv-zoom,1));transform-origin:bottom right;
+    background:rgba(250,249,247,.78);color:#29261b;
+    -webkit-backdrop-filter:blur(24px) saturate(160%);backdrop-filter:blur(24px) saturate(160%);
+    border:.5px solid rgba(255,255,255,.6);border-radius:14px;
+    box-shadow:0 1px 0 rgba(255,255,255,.5) inset,0 12px 40px rgba(0,0,0,.18);
+    font:11.5px/1.4 ui-sans-serif,system-ui,-apple-system,sans-serif;overflow:hidden}
+  .twk-hd{display:flex;align-items:center;justify-content:space-between;
+    padding:10px 8px 10px 14px;cursor:move;user-select:none}
+  .twk-hd b{font-size:12px;font-weight:600;letter-spacing:.01em}
+  .twk-x{appearance:none;border:0;background:transparent;color:rgba(41,38,27,.55);
+    width:22px;height:22px;border-radius:6px;cursor:default;font-size:13px;line-height:1}
+  .twk-x:hover{background:rgba(0,0,0,.06);color:#29261b}
+  .twk-body{padding:2px 14px 14px;display:flex;flex-direction:column;gap:10px;
+    overflow-y:auto;overflow-x:hidden;min-height:0;
+    scrollbar-width:thin;scrollbar-color:rgba(0,0,0,.15) transparent}
+  .twk-row{display:flex;flex-direction:column;gap:5px}
+  .twk-row-h{flex-direction:row;align-items:center;justify-content:space-between;gap:10px}
+  .twk-lbl{display:flex;justify-content:space-between;align-items:baseline;color:rgba(41,38,27,.72)}
+  .twk-lbl>span:first-child{font-weight:500}
+  .twk-val{color:rgba(41,38,27,.5);font-variant-numeric:tabular-nums}
+  .twk-sect{font-size:10px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;
+    color:rgba(41,38,27,.45);padding:10px 0 0}
+  .twk-sect:first-child{padding-top:0}
+  .twk-field{appearance:none;box-sizing:border-box;width:100%;min-width:0;height:26px;padding:0 8px;
+    border:.5px solid rgba(0,0,0,.1);border-radius:7px;
+    background:rgba(255,255,255,.6);color:inherit;font:inherit;outline:none}
+  .twk-field:focus{border-color:rgba(0,0,0,.25);background:rgba(255,255,255,.85)}
+  select.twk-field{padding-right:22px;
+    background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'><path fill='rgba(0,0,0,.5)' d='M0 0h10L5 6z'/></svg>");
+    background-repeat:no-repeat;background-position:right 8px center}
+  .twk-toggle{position:relative;width:32px;height:18px;border:0;border-radius:999px;
+    background:rgba(0,0,0,.15);transition:background .15s;cursor:default;padding:0}
+  .twk-toggle[data-on="1"]{background:#34c759}
+  .twk-toggle i{position:absolute;top:2px;left:2px;width:14px;height:14px;border-radius:50%;
+    background:#fff;box-shadow:0 1px 2px rgba(0,0,0,.25);transition:transform .15s}
+  .twk-toggle[data-on="1"] i{transform:translateX(14px)}
+  .twk-seg{position:relative;display:flex;padding:2px;border-radius:8px;
+    background:rgba(0,0,0,.06);user-select:none}
+  .twk-seg-thumb{position:absolute;top:2px;bottom:2px;border-radius:6px;
+    background:rgba(255,255,255,.9);box-shadow:0 1px 2px rgba(0,0,0,.12);
+    transition:left .15s cubic-bezier(.3,.7,.4,1),width .15s}
+  .twk-seg.dragging .twk-seg-thumb{transition:none}
+  .twk-seg button{appearance:none;position:relative;z-index:1;flex:1;border:0;
+    background:transparent;color:inherit;font:inherit;font-weight:500;min-height:22px;
+    border-radius:6px;cursor:default;padding:4px 6px;line-height:1.2;overflow-wrap:anywhere}
+`;
+
+function useTweaks(defaults) {
+  const [values, setValues] = React.useState(defaults);
+  const setTweak = React.useCallback((keyOrEdits, val) => {
+    const edits = typeof keyOrEdits === 'object' && keyOrEdits !== null
+      ? keyOrEdits : { [keyOrEdits]: val };
+    setValues((prev) => ({ ...prev, ...edits }));
+  }, []);
+  return [values, setTweak];
+}
+
+function TweaksPanel({ title = 'Tweaks', children }) {
+  const [open, setOpen] = React.useState(false);
+  const dragRef = React.useRef(null);
+  const offsetRef = React.useRef({ x: 16, y: 16 });
+  const PAD = 16;
+
+  const clampToViewport = React.useCallback(() => {
+    const panel = dragRef.current;
+    if (!panel) return;
+    const w = panel.offsetWidth, h = panel.offsetHeight;
+    const maxRight = Math.max(PAD, window.innerWidth - w - PAD);
+    const maxBottom = Math.max(PAD, window.innerHeight - h - PAD);
+    offsetRef.current = {
+      x: Math.min(maxRight, Math.max(PAD, offsetRef.current.x)),
+      y: Math.min(maxBottom, Math.max(PAD, offsetRef.current.y)),
+    };
+    panel.style.right = offsetRef.current.x + 'px';
+    panel.style.bottom = offsetRef.current.y + 'px';
+  }, []);
+
+  React.useEffect(() => {
+    if (!open) return;
+    clampToViewport();
+    const ro = new ResizeObserver(clampToViewport);
+    ro.observe(document.documentElement);
+    return () => ro.disconnect();
+  }, [open, clampToViewport]);
+
+  if (!open) {
+    return (
+      <button onClick={() => setOpen(true)} style={{
+        position: "fixed", right: 16, bottom: 16, zIndex: 2147483645,
+        background: "rgba(250,249,247,.85)", border: ".5px solid rgba(255,255,255,.6)",
+        borderRadius: 10, padding: "6px 12px", fontSize: 11.5, fontWeight: 600,
+        cursor: "pointer", boxShadow: "0 2px 8px rgba(0,0,0,.15)",
+        backdropFilter: "blur(12px)", color: "#29261b",
+      }}>Tweaks ⚙️</button>
+    );
+  }
+
+  const onDragStart = (e) => {
+    const panel = dragRef.current;
+    if (!panel) return;
+    const r = panel.getBoundingClientRect();
+    const sx = e.clientX, sy = e.clientY;
+    const startRight = window.innerWidth - r.right;
+    const startBottom = window.innerHeight - r.bottom;
+    const move = (ev) => {
+      offsetRef.current = {
+        x: startRight - (ev.clientX - sx),
+        y: startBottom - (ev.clientY - sy),
+      };
+      clampToViewport();
+    };
+    const up = () => {
+      window.removeEventListener('mousemove', move);
+      window.removeEventListener('mouseup', up);
+    };
+    window.addEventListener('mousemove', move);
+    window.addEventListener('mouseup', up);
+  };
+
+  return (
+    <>
+      <style>{__TWEAKS_STYLE}</style>
+      <div ref={dragRef} className="twk-panel"
+           style={{ right: offsetRef.current.x, bottom: offsetRef.current.y }}>
+        <div className="twk-hd" onMouseDown={onDragStart}>
+          <b>{title}</b>
+          <button className="twk-x" onMouseDown={(e) => e.stopPropagation()}
+                  onClick={() => setOpen(false)}>✕</button>
+        </div>
+        <div className="twk-body">{children}</div>
+      </div>
+    </>
+  );
+}
+
+function TweakSection({ label }) {
+  return <div className="twk-sect">{label}</div>;
+}
+
+function TweakToggle({ label, value, onChange }) {
+  return (
+    <div className="twk-row twk-row-h">
+      <div className="twk-lbl"><span>{label}</span></div>
+      <button type="button" className="twk-toggle" data-on={value ? '1' : '0'}
+              onClick={() => onChange(!value)}><i /></button>
+    </div>
+  );
+}
+
+function TweakRadio({ label, value, options, onChange }) {
+  const opts = options.map((o) => (typeof o === 'object' ? o : { value: o, label: o }));
+  const labelLen = (o) => String(typeof o === 'object' ? o.label : o).length;
+  const maxLen = options.reduce((m, o) => Math.max(m, labelLen(o)), 0);
+  const fitsAsSegments = maxLen <= ({ 2: 16, 3: 10 }[options.length] ?? 0);
+
+  if (!fitsAsSegments) {
+    return (
+      <div className="twk-row">
+        <div className="twk-lbl"><span>{label}</span></div>
+        <select className="twk-field" value={value} onChange={(e) => {
+          const m = options.find((o) => String(typeof o === 'object' ? o.value : o) === e.target.value);
+          onChange(m === undefined ? e.target.value : typeof m === 'object' ? m.value : m);
+        }}>
+          {opts.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+        </select>
+      </div>
+    );
+  }
+
+  const trackRef = React.useRef(null);
+  const [dragging, setDragging] = React.useState(false);
+  const valueRef = React.useRef(value);
+  valueRef.current = value;
+  const idx = Math.max(0, opts.findIndex((o) => o.value === value));
+  const n = opts.length;
+
+  const segAt = (clientX) => {
+    const r = trackRef.current.getBoundingClientRect();
+    const inner = r.width - 4;
+    const i = Math.floor(((clientX - r.left - 2) / inner) * n);
+    return opts[Math.max(0, Math.min(n - 1, i))].value;
+  };
+
+  const onPointerDown = (e) => {
+    setDragging(true);
+    const v0 = segAt(e.clientX);
+    if (v0 !== valueRef.current) onChange(v0);
+    const move = (ev) => {
+      if (!trackRef.current) return;
+      const v = segAt(ev.clientX);
+      if (v !== valueRef.current) onChange(v);
+    };
+    const up = () => {
+      setDragging(false);
+      window.removeEventListener('pointermove', move);
+      window.removeEventListener('pointerup', up);
+    };
+    window.addEventListener('pointermove', move);
+    window.addEventListener('pointerup', up);
+  };
+
+  return (
+    <div className="twk-row">
+      <div className="twk-lbl"><span>{label}</span></div>
+      <div ref={trackRef} role="radiogroup" onPointerDown={onPointerDown}
+           className={dragging ? 'twk-seg dragging' : 'twk-seg'}>
+        <div className="twk-seg-thumb"
+             style={{ left: `calc(2px + ${idx} * (100% - 4px) / ${n})`,
+                      width: `calc((100% - 4px) / ${n})` }} />
+        {opts.map((o) => (
+          <button key={o.value} type="button" role="radio" aria-checked={o.value === value}>
+            {o.label}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────
+// CREATURES
+// ─────────────────────────────────────────────────────────────
+const Sparkle = ({ x, y, s = 1, c = "#fff" }) => (
+  <g transform={`translate(${x},${y}) scale(${s})`}>
+    <path d="M0 -6 L1.2 -1.2 L6 0 L1.2 1.2 L0 6 L-1.2 1.2 L-6 0 L-1.2 -1.2 Z" fill={c} />
+  </g>
+);
+
+const Eyes = ({ cx1 = -10, cx2 = 10, cy = 0, r = 5.5 }) => (
+  <g>
+    <ellipse cx={cx1} cy={cy} rx={r} ry={r * 1.15} fill="#1a1410" />
+    <ellipse cx={cx2} cy={cy} rx={r} ry={r * 1.15} fill="#1a1410" />
+    <circle cx={cx1 + r * 0.35} cy={cy - r * 0.4} r={r * 0.32} fill="#fff" />
+    <circle cx={cx2 + r * 0.35} cy={cy - r * 0.4} r={r * 0.32} fill="#fff" />
+    <circle cx={cx1 - r * 0.45} cy={cy + r * 0.4} r={r * 0.18} fill="#fff" opacity="0.7" />
+    <circle cx={cx2 - r * 0.45} cy={cy + r * 0.4} r={r * 0.18} fill="#fff" opacity="0.7" />
+  </g>
+);
+
+const Cheeks = ({ cx1 = -18, cx2 = 18, cy = 12, color = "#FF8FA6" }) => (
+  <g opacity="0.65">
+    <ellipse cx={cx1} cy={cy} rx="5" ry="3.4" fill={color} />
+    <ellipse cx={cx2} cy={cy} rx="5" ry="3.4" fill={color} />
+  </g>
+);
+
+const FangSmile = ({ cy = 8, w = 10 }) => (
+  <g>
+    <path d={`M${-w} ${cy} q${w} 5 ${w * 2} 0`} stroke="#1a1410" strokeWidth="2" fill="none" strokeLinecap="round" />
+    <path d={`M${-w * 0.55} ${cy + 1.5} l1.2 3 l1.2 -3 Z`} fill="#fff" stroke="#1a1410" strokeWidth="0.8" strokeLinejoin="round" />
+    <path d={`M${w * 0.35} ${cy + 1.5} l1.2 3 l1.2 -3 Z`} fill="#fff" stroke="#1a1410" strokeWidth="0.8" strokeLinejoin="round" />
+  </g>
+);
+
+function Boba({ size = 120, color = "#C9B8E8", accent = "#9E84D4", style }) {
+  return (
+    <svg viewBox="-60 -70 120 130" width={size} height={size} style={style}>
+      <ellipse cx="0" cy="52" rx="32" ry="5" fill="#000" opacity="0.1" />
+      <path d="M-32 -45 Q-44 -68 -28 -62 Q-22 -50 -22 -38 Z" fill={color} stroke="#1a1410" strokeWidth="2" strokeLinejoin="round" />
+      <path d="M32 -45 Q44 -68 28 -62 Q22 -50 22 -38 Z" fill={color} stroke="#1a1410" strokeWidth="2" strokeLinejoin="round" />
+      <path d="M-30 -50 Q-36 -60 -28 -57 Q-25 -52 -25 -45 Z" fill={accent} />
+      <path d="M30 -50 Q36 -60 28 -57 Q25 -52 25 -45 Z" fill={accent} />
+      <path d="M-38 -10 Q-44 -38 -22 -44 Q0 -50 22 -44 Q44 -38 38 -10 Q42 28 22 40 Q0 48 -22 40 Q-42 28 -38 -10 Z"
+        fill={color} stroke="#1a1410" strokeWidth="2.4" strokeLinejoin="round" />
+      <ellipse cx="0" cy="18" rx="20" ry="14" fill="#fff" opacity="0.35" />
+      <Eyes cx1={-12} cx2={12} cy={-8} r={5.5} />
+      <Cheeks cx1={-22} cx2={22} cy={6} />
+      <FangSmile cy={5} w={9} />
+      <Sparkle x={-42} y={-30} s={0.7} c="#FFE08A" />
+      <Sparkle x={40} y={-20} s={0.5} c="#FFE08A" />
+    </svg>
+  );
+}
+
+function Yumi({ size = 80, color = "#FFB59E", accent = "#FF8A6E", style }) {
+  return (
+    <svg viewBox="-50 -50 100 100" width={size} height={size} style={style}>
+      <ellipse cx="0" cy="40" rx="26" ry="4" fill="#000" opacity="0.08" />
+      <circle cx="-22" cy="-25" r="9" fill={color} stroke="#1a1410" strokeWidth="2" />
+      <circle cx="22" cy="-25" r="9" fill={color} stroke="#1a1410" strokeWidth="2" />
+      <circle cx="-22" cy="-25" r="4" fill={accent} />
+      <circle cx="22" cy="-25" r="4" fill={accent} />
+      <path d="M-32 -8 Q-36 -28 -18 -32 Q0 -36 18 -32 Q36 -28 32 -8 Q36 22 18 32 Q0 38 -18 32 Q-36 22 -32 -8 Z"
+        fill={color} stroke="#1a1410" strokeWidth="2.2" strokeLinejoin="round" />
+      <Eyes cx1={-10} cx2={10} cy={-4} r={4.8} />
+      <Cheeks cx1={-19} cx2={19} cy={9} />
+      <FangSmile cy={8} w={7} />
+    </svg>
+  );
+}
+
+function Zoomi({ size = 80, color = "#A8D8F0", accent = "#7BB8DC", style }) {
+  return (
+    <svg viewBox="-50 -50 100 100" width={size} height={size} style={style}>
+      <ellipse cx="0" cy="40" rx="26" ry="4" fill="#000" opacity="0.08" />
+      <path d="M-30 -5 Q-46 -10 -42 8 Q-34 10 -28 4 Z" fill={accent} stroke="#1a1410" strokeWidth="2" strokeLinejoin="round" />
+      <path d="M30 -5 Q46 -10 42 8 Q34 10 28 4 Z" fill={accent} stroke="#1a1410" strokeWidth="2" strokeLinejoin="round" />
+      <ellipse cx="0" cy="5" rx="28" ry="30" fill={color} stroke="#1a1410" strokeWidth="2.2" />
+      <path d="M-6 -28 Q-2 -38 2 -32 Q4 -36 6 -28" fill={accent} stroke="#1a1410" strokeWidth="2" strokeLinejoin="round" />
+      <Eyes cx1={-9} cx2={9} cy={-2} r={4.8} />
+      <Cheeks cx1={-18} cx2={18} cy={12} color="#FF9FB8" />
+      <FangSmile cy={11} w={7} />
+    </svg>
+  );
+}
+
+function Cozy({ size = 80, color = "#B8E0B5", accent = "#88C68A", style }) {
+  return (
+    <svg viewBox="-50 -50 100 100" width={size} height={size} style={style}>
+      <ellipse cx="0" cy="40" rx="26" ry="4" fill="#000" opacity="0.08" />
+      <path d="M-6 -32 Q-2 -46 8 -42 Q12 -34 4 -28 Z" fill={accent} stroke="#1a1410" strokeWidth="2" strokeLinejoin="round" />
+      <path d="M-2 -38 Q4 -36 6 -32" stroke="#1a1410" strokeWidth="1.2" fill="none" />
+      <path d="M-30 0 Q-34 -22 -16 -28 Q0 -32 16 -28 Q34 -22 30 0 Q34 26 16 34 Q0 40 -16 34 Q-34 26 -30 0 Z"
+        fill={color} stroke="#1a1410" strokeWidth="2.2" strokeLinejoin="round" />
+      <Eyes cx1={-9} cx2={9} cy={-2} r={4.8} />
+      <Cheeks cx1={-19} cx2={19} cy={11} />
+      <FangSmile cy={10} w={7} />
+    </svg>
+  );
+}
+
+function Heart({ size = 80, color = "#FFB5C5", accent = "#FF8FA6", style }) {
+  return (
+    <svg viewBox="-50 -50 100 100" width={size} height={size} style={style}>
+      <ellipse cx="0" cy="40" rx="26" ry="4" fill="#000" opacity="0.08" />
+      <path d="M0 -22 Q-14 -38 -28 -28 Q-40 -16 -32 0 Q-24 22 0 36 Q24 22 32 0 Q40 -16 28 -28 Q14 -38 0 -22 Z"
+        fill={color} stroke="#1a1410" strokeWidth="2.2" strokeLinejoin="round" />
+      <Eyes cx1={-10} cx2={10} cy={-4} r={4.8} />
+      <Cheeks cx1={-20} cx2={20} cy={10} color="#FF7095" />
+      <FangSmile cy={8} w={7} />
+    </svg>
+  );
+}
+
+function Pip({ size = 80, color = "#FFE08A", accent = "#F2C04C", style }) {
+  return (
+    <svg viewBox="-50 -50 100 100" width={size} height={size} style={style}>
+      <ellipse cx="0" cy="40" rx="26" ry="4" fill="#000" opacity="0.08" />
+      <path d="M-8 -30 Q-10 -42 -2 -38 Q0 -44 4 -36 Q10 -42 8 -30 Z" fill={accent} stroke="#1a1410" strokeWidth="2" strokeLinejoin="round" />
+      <ellipse cx="0" cy="2" rx="30" ry="30" fill={color} stroke="#1a1410" strokeWidth="2.2" />
+      <path d="M-4 6 L0 12 L4 6 Z" fill={accent} stroke="#1a1410" strokeWidth="1.6" strokeLinejoin="round" />
+      <Eyes cx1={-10} cx2={10} cy={-6} r={4.8} />
+      <Cheeks cx1={-20} cx2={20} cy={8} />
+    </svg>
+  );
+}
+
+function Posy({ size = 80, color = "#F2B8DC", accent = "#D98BC4", style }) {
+  return (
+    <svg viewBox="-50 -50 100 100" width={size} height={size} style={style}>
+      <ellipse cx="0" cy="40" rx="26" ry="4" fill="#000" opacity="0.08" />
+      <g transform="translate(0,-32)">
+        <circle cx="-7" cy="-2" r="5" fill="#fff" stroke="#1a1410" strokeWidth="1.6" />
+        <circle cx="7" cy="-2" r="5" fill="#fff" stroke="#1a1410" strokeWidth="1.6" />
+        <circle cx="-4" cy="5" r="5" fill="#fff" stroke="#1a1410" strokeWidth="1.6" />
+        <circle cx="4" cy="5" r="5" fill="#fff" stroke="#1a1410" strokeWidth="1.6" />
+        <circle cx="0" cy="0" r="4" fill="#FFE08A" stroke="#1a1410" strokeWidth="1.6" />
+      </g>
+      <path d="M-30 -8 Q-34 -26 -16 -30 Q0 -34 16 -30 Q34 -26 30 -8 Q34 24 16 32 Q0 38 -16 32 Q-34 24 -30 -8 Z"
+        fill={color} stroke="#1a1410" strokeWidth="2.2" strokeLinejoin="round" />
+      <Eyes cx1={-9} cx2={9} cy={-2} r={4.8} />
+      <Cheeks cx1={-19} cx2={19} cy={11} color="#D9678D" />
+      <FangSmile cy={10} w={7} />
+    </svg>
+  );
+}
+
+function Coin({ size = 28, style }) {
+  return (
+    <svg viewBox="-20 -20 40 40" width={size} height={size} style={style}>
+      <ellipse cx="2" cy="3" rx="15" ry="15" fill="#E8A832" />
+      <circle cx="0" cy="0" r="15" fill="#FFD15C" stroke="#1a1410" strokeWidth="2" />
+      <circle cx="0" cy="0" r="10" fill="none" stroke="#E8A832" strokeWidth="1.5" />
+      <text x="0" y="5" textAnchor="middle" fontSize="13" fontWeight="700" fill="#7A5C12" fontFamily="Fredoka, sans-serif">¥</text>
+    </svg>
+  );
+}
+
+const CREATURES = { Boba, Yumi, Zoomi, Cozy, Heart, Pip, Posy };
+
+function Mascot({ name, size, ...rest }) {
+  const C = CREATURES[name] || Boba;
+  return <C size={size} {...rest} />;
+}
+
+// ─────────────────────────────────────────────────────────────
+// iOS FRAME
+// ─────────────────────────────────────────────────────────────
+function IOSStatusBar({ dark = false, time = '9:41' }) {
+  const c = dark ? '#fff' : '#000';
+  return (
+    <div style={{
+      display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+      padding: '14px 24px 8px', boxSizing: 'border-box',
+      position: 'relative', zIndex: 20, width: '100%',
+    }}>
+      <span style={{
+        fontFamily: '-apple-system, "SF Pro", system-ui', fontWeight: 590,
+        fontSize: 17, lineHeight: '22px', color: c,
+      }}>{time}</span>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
+        <svg width="19" height="12" viewBox="0 0 19 12">
+          <rect x="0" y="7.5" width="3.2" height="4.5" rx="0.7" fill={c}/>
+          <rect x="4.8" y="5" width="3.2" height="7" rx="0.7" fill={c}/>
+          <rect x="9.6" y="2.5" width="3.2" height="9.5" rx="0.7" fill={c}/>
+          <rect x="14.4" y="0" width="3.2" height="12" rx="0.7" fill={c}/>
+        </svg>
+        <svg width="17" height="12" viewBox="0 0 17 12">
+          <path d="M8.5 3.2C10.8 3.2 12.9 4.1 14.4 5.6L15.5 4.5C13.7 2.7 11.2 1.5 8.5 1.5C5.8 1.5 3.3 2.7 1.5 4.5L2.6 5.6C4.1 4.1 6.2 3.2 8.5 3.2Z" fill={c}/>
+          <path d="M8.5 6.8C9.9 6.8 11.1 7.3 12 8.2L13.1 7.1C11.8 5.9 10.2 5.1 8.5 5.1C6.8 5.1 5.2 5.9 3.9 7.1L5 8.2C5.9 7.3 7.1 6.8 8.5 6.8Z" fill={c}/>
+          <circle cx="8.5" cy="10.5" r="1.5" fill={c}/>
+        </svg>
+        <svg width="27" height="13" viewBox="0 0 27 13">
+          <rect x="0.5" y="0.5" width="23" height="12" rx="3.5" stroke={c} strokeOpacity="0.35" fill="none"/>
+          <rect x="2" y="2" width="20" height="9" rx="2" fill={c}/>
+          <path d="M25 4.5V8.5C25.8 8.2 26.5 7.2 26.5 6.5C26.5 5.8 25.8 4.8 25 4.5Z" fill={c} fillOpacity="0.4"/>
+        </svg>
+      </div>
+    </div>
+  );
+}
+
+function IOSDevice({ children, width = 402, height = 874, dark = false }) {
+  return (
+    <div style={{
+      width, height, borderRadius: 48, overflow: 'hidden',
+      position: 'relative', background: dark ? '#000' : '#F2F2F7',
+      boxShadow: '0 40px 80px rgba(0,0,0,0.18), 0 0 0 1px rgba(0,0,0,0.12)',
+      fontFamily: '-apple-system, system-ui, sans-serif',
+      WebkitFontSmoothing: 'antialiased',
+    }}>
+      <div style={{
+        position: 'absolute', top: 11, left: '50%', transform: 'translateX(-50%)',
+        width: 126, height: 37, borderRadius: 24, background: '#000', zIndex: 50,
+      }} />
+      <div style={{ position: 'absolute', top: 0, left: 0, right: 0, zIndex: 10 }}>
+        <IOSStatusBar dark={dark} />
+      </div>
+      <div style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
+        <div style={{ flex: 1, overflow: 'auto' }}>{children}</div>
+      </div>
+      <div style={{
+        position: 'absolute', bottom: 0, left: 0, right: 0, zIndex: 60,
+        height: 34, display: 'flex', justifyContent: 'center', alignItems: 'flex-end',
+        paddingBottom: 8, pointerEvents: 'none',
+      }}>
+        <div style={{
+          width: 139, height: 5, borderRadius: 100,
+          background: dark ? 'rgba(255,255,255,0.7)' : 'rgba(0,0,0,0.25)',
+        }} />
+      </div>
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────
+// DATA
+// ─────────────────────────────────────────────────────────────
+const FAMILY = [
+  { id: "mom",  name: "妈妈",  creature: "Heart", color: "#FFB5C5", accent: "#FF8FA6", budget: 4500, spent: 2840 },
+  { id: "dad",  name: "爸爸",  creature: "Zoomi", color: "#A8D8F0", accent: "#7BB8DC", budget: 5200, spent: 3920 },
+  { id: "kid1", name: "小米",  creature: "Pip",   color: "#FFE08A", accent: "#F2C04C", budget: 1800, spent: 720 },
+  { id: "kid2", name: "豆豆",  creature: "Cozy",  color: "#B8E0B5", accent: "#88C68A", budget: 1200, spent: 510 },
+];
+
+const CATEGORIES = [
+  { id: "food",      name: "吃喝",   creature: "Yumi",  color: "#FFB59E", spent: 2480, budget: 3500 },
+  { id: "transport", name: "出行",   creature: "Zoomi", color: "#A8D8F0", spent: 980,  budget: 1500 },
+  { id: "home",      name: "家居",   creature: "Cozy",  color: "#B8E0B5", spent: 1640, budget: 2000 },
+  { id: "kids",      name: "小朋友", creature: "Pip",   color: "#FFE08A", spent: 720,  budget: 1500 },
+  { id: "shop",      name: "购物",   creature: "Posy",  color: "#F2B8DC", spent: 1340, budget: 1800 },
+  { id: "health",    name: "健康",   creature: "Heart", color: "#FFB5C5", spent: 830,  budget: 1200 },
+];
+
+const RECENT = [
+  { id: 1, who: "妈妈", cat: "食物超市", amount: 186.50, time: "今天 18:42", creature: "Yumi",  color: "#FFB59E", note: "晚餐食材" },
+  { id: 2, who: "爸爸", cat: "加油站",   amount: 320.00, time: "今天 09:15", creature: "Zoomi", color: "#A8D8F0", note: "" },
+  { id: 3, who: "小米", cat: "文具",     amount: 48.00,  time: "昨天 16:30", creature: "Pip",   color: "#FFE08A", note: "笔记本和铅笔" },
+  { id: 4, who: "妈妈", cat: "咖啡",     amount: 32.00,  time: "昨天 10:08", creature: "Yumi",  color: "#FFB59E", note: "" },
+  { id: 5, who: "爸爸", cat: "电费",     amount: 245.30, time: "前天",       creature: "Cozy",  color: "#B8E0B5", note: "本月" },
+  { id: 6, who: "豆豆", cat: "玩具",     amount: 89.90,  time: "前天",       creature: "Posy",  color: "#F2B8DC", note: "积木" },
+];
+
+const GOALS = [
+  { id: 1, name: "海边度假",      target: 12000, saved: 7840, creature: "Zoomi", color: "#A8D8F0", days: 64 },
+  { id: 2, name: "新冰箱",        target: 6800,  saved: 6120, creature: "Cozy",  color: "#B8E0B5", days: 12 },
+  { id: 3, name: "小米的钢琴课",  target: 4800,  saved: 1920, creature: "Pip",   color: "#FFE08A", days: 92 },
+];
+
+const MONTH_DAYS = [
+  120, 240, 80, 320, 180, 90, 410, 260, 140, 180,
+  220, 380, 90, 110, 280, 420, 160, 240, 100, 70,
+  340, 290, 180, 120, 200, 360, 80, 220, 0, 0, 0,
+];
+
+const PALETTES = {
+  taro:       { name: "芋泥",   bg: "#FFF6E9", bg2: "#FFE9F0", primary: "#C9B8E8", primaryDeep: "#9E84D4", chip: "#FFE0EC" },
+  peach:      { name: "蜜桃",   bg: "#FFF1E5", bg2: "#FFE0CC", primary: "#FFB59E", primaryDeep: "#FF8A6E", chip: "#FFDFC9" },
+  mint:       { name: "薄荷",   bg: "#EEF9EE", bg2: "#DCF0E4", primary: "#B8E0B5", primaryDeep: "#88C68A", chip: "#D5F0DA" },
+  strawberry: { name: "草莓",   bg: "#FFF0F2", bg2: "#FFDDE5", primary: "#FFB5C5", primaryDeep: "#FF7095", chip: "#FFD9E2" },
+};
+
+const TWEAK_DEFAULTS = {
+  palette: "taro",
+  showStickers: true,
+  denseList: false,
+  mascot: "Boba",
+};
+
+const yuan = (n, k = 2) => "¥" + n.toLocaleString("zh-CN", { minimumFractionDigits: k, maximumFractionDigits: k });
+
+// ─────────────────────────────────────────────────────────────
+// SHARED COMPONENTS
+// ─────────────────────────────────────────────────────────────
+function Card({ children, style, onClick, color = "#fff", noBorder }) {
+  return (
+    <div onClick={onClick} style={{
+      background: color, borderRadius: 22,
+      border: noBorder ? "none" : "2px solid #1a1410",
+      boxShadow: "0 4px 0 #1a1410, 0 8px 20px rgba(26,20,16,0.08)",
+      padding: 16, position: "relative",
+      ...style,
+    }}>{children}</div>
+  );
+}
+
+function Chip({ children, color = "#FFE0EC", style }) {
+  return (
+    <span style={{
+      display: "inline-flex", alignItems: "center", gap: 4,
+      padding: "3px 10px", borderRadius: 999,
+      background: color, border: "1.5px solid #1a1410",
+      fontSize: 11, fontWeight: 700, color: "#1a1410",
+      ...style,
+    }}>{children}</span>
+  );
+}
+
+function Progress({ value, color = "#C9B8E8", height = 14 }) {
+  const pct = Math.max(0, Math.min(100, value));
+  return (
+    <div style={{
+      height, borderRadius: height, background: "#FFF",
+      border: "2px solid #1a1410", overflow: "hidden",
+      boxShadow: "inset 0 2px 0 rgba(0,0,0,0.06)",
+    }}>
+      <div style={{
+        width: `${pct}%`, height: "100%", background: color,
+        borderRight: pct > 0 && pct < 100 ? "2px solid #1a1410" : "none",
+        transition: "width 600ms cubic-bezier(.34,1.56,.64,1)",
+        backgroundImage: "linear-gradient(180deg, rgba(255,255,255,0.4) 0%, rgba(255,255,255,0) 50%)",
+      }} />
+    </div>
+  );
+}
+
+function SectionHeader({ title, sub, right }) {
+  return (
+    <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", marginBottom: 8, marginTop: 4 }}>
+      <div style={{ display: "flex", alignItems: "baseline", gap: 8 }}>
+        <h3 style={{ fontFamily: "Fredoka, sans-serif", fontSize: 17, fontWeight: 600, color: "#1a1410", margin: 0 }}>{title}</h3>
+        {sub && <span style={{ fontSize: 11, color: "rgba(26,20,16,0.5)", fontWeight: 700 }}>{sub}</span>}
+      </div>
+      {right}
+    </div>
+  );
+}
+
+function StickerLayer({ palette, show }) {
+  if (!show) return null;
+  const stars = [
+    { x: 18, y: 80,  r: -12, s: 18, c: "#FFE08A" },
+    { x: 320, y: 60,  r: 18,  s: 14, c: palette.primaryDeep },
+    { x: 30, y: 280, r: 6,   s: 12, c: "#FFB5C5" },
+    { x: 340, y: 360, r: -10, s: 16, c: "#A8D8F0" },
+    { x: 24, y: 540, r: 14,  s: 14, c: "#B8E0B5" },
+    { x: 350, y: 640, r: -6,  s: 18, c: "#FFE08A" },
+  ];
+  return (
+    <div style={{ position: "absolute", inset: 0, pointerEvents: "none", overflow: "hidden", zIndex: 0 }}>
+      {stars.map((s, i) => (
+        <svg key={i} width={s.s * 2} height={s.s * 2} viewBox="-10 -10 20 20"
+          style={{ position: "absolute", left: s.x, top: s.y, transform: `rotate(${s.r}deg)`, opacity: 0.55 }}>
+          <path d="M0 -8 L1.6 -1.6 L8 0 L1.6 1.6 L0 8 L-1.6 1.6 L-8 0 L-1.6 -1.6 Z" fill={s.c} stroke="#1a1410" strokeWidth="0.6" />
+        </svg>
+      ))}
+    </div>
+  );
+}
+
+const iconBtn = {
+  width: 38, height: 38, borderRadius: 12,
+  background: "#FFF", border: "2px solid #1a1410",
+  boxShadow: "0 2px 0 #1a1410",
+  fontSize: 16, cursor: "pointer", padding: 0,
+};
+
+// ─────────────────────────────────────────────────────────────
+// TAB BAR
+// ─────────────────────────────────────────────────────────────
+function TabBar({ active, onTab, palette }) {
+  const tabs = [
+    { id: "home",     label: "首页",  icon: "home" },
+    { id: "add",      label: "记账",  icon: "add" },
+    { id: "goals",    label: "目标",  icon: "goal" },
+    { id: "family",   label: "家人",  icon: "family" },
+    { id: "insights", label: "洞察",  icon: "insight" },
+  ];
+  return (
+    <div style={{
+      position: "absolute", bottom: 12, left: 12, right: 12, zIndex: 70,
+      background: "#FFF6E9", border: "2px solid #1a1410", borderRadius: 24,
+      boxShadow: "0 4px 0 #1a1410, 0 8px 24px rgba(26,20,16,0.12)",
+      padding: "8px 6px",
+      display: "flex", justifyContent: "space-around", alignItems: "center",
+    }}>
+      {tabs.map(t => {
+        const sel = t.id === active;
+        const isAdd = t.id === "add";
+        return (
+          <button key={t.id} onClick={() => onTab(t.id)} style={{
+            border: "none", background: "transparent", cursor: "pointer", padding: 0,
+            display: "flex", flexDirection: "column", alignItems: "center", gap: 2,
+            flex: 1,
+          }}>
+            <div style={{
+              width: isAdd ? 48 : 36, height: isAdd ? 48 : 36,
+              borderRadius: isAdd ? 16 : 12,
+              background: sel ? palette.primaryDeep : (isAdd ? palette.primary : "transparent"),
+              border: isAdd ? "2px solid #1a1410" : (sel ? "2px solid #1a1410" : "2px solid transparent"),
+              boxShadow: isAdd ? "0 3px 0 #1a1410" : (sel ? "0 2px 0 #1a1410" : "none"),
+              display: "flex", alignItems: "center", justifyContent: "center",
+              marginTop: isAdd ? -16 : 0,
+              transition: "all 180ms",
+            }}>
+              <TabIcon name={t.icon} size={isAdd ? 22 : 18} color="#1a1410" />
+            </div>
+            <span style={{
+              fontSize: 10, fontWeight: 800,
+              color: sel ? "#1a1410" : "rgba(26,20,16,0.55)",
+              marginTop: isAdd ? -2 : 0,
+            }}>{t.label}</span>
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+function TabIcon({ name, size = 18, color = "#1a1410" }) {
+  const s = size;
+  const sw = 2.2;
+  const c = { stroke: color, strokeWidth: sw, fill: "none", strokeLinecap: "round", strokeLinejoin: "round" };
+  switch (name) {
+    case "home":
+      return (
+        <svg width={s} height={s} viewBox="0 0 22 22">
+          <path d="M3 11 L11 3 L19 11" {...c} />
+          <path d="M5 10 V18 H17 V10" {...c} />
+          <path d="M9 18 V13 H13 V18" {...c} />
+        </svg>
+      );
+    case "add":
+      return (
+        <svg width={s} height={s} viewBox="0 0 22 22">
+          <path d="M11 4 V18 M4 11 H18" {...c} strokeWidth="2.6" />
+        </svg>
+      );
+    case "goal":
+      return (
+        <svg width={s} height={s} viewBox="0 0 22 22">
+          <circle cx="11" cy="11" r="8" {...c} />
+          <circle cx="11" cy="11" r="4" {...c} />
+          <circle cx="11" cy="11" r="1.2" fill={color} stroke="none" />
+        </svg>
+      );
+    case "family":
+      return (
+        <svg width={s} height={s} viewBox="0 0 22 22">
+          <circle cx="7" cy="8" r="2.6" {...c} />
+          <circle cx="15" cy="8" r="2.6" {...c} />
+          <path d="M2.5 18 Q2.5 13 7 13 Q11.5 13 11.5 18" {...c} />
+          <path d="M10.5 18 Q10.5 13 15 13 Q19.5 13 19.5 18" {...c} />
+        </svg>
+      );
+    case "insight":
+      return (
+        <svg width={s} height={s} viewBox="0 0 22 22">
+          <path d="M3 17 V11 M9 17 V7 M15 17 V13 M3 17 H19" {...c} />
+        </svg>
+      );
+    default: return null;
+  }
+}
+
+// ─────────────────────────────────────────────────────────────
+// TOAST
+// ─────────────────────────────────────────────────────────────
+function Toast({ show, palette, onHide }) {
+  const { useEffect } = React;
+  useEffect(() => {
+    if (!show) return;
+    const id = setTimeout(onHide, 1800);
+    return () => clearTimeout(id);
+  }, [show]);
+  if (!show) return null;
+  return (
+    <div className="pop-in" style={{
+      position: "absolute", top: 70, left: "50%", transform: "translateX(-50%)",
+      zIndex: 80,
+      background: palette.primary, border: "2px solid #1a1410",
+      borderRadius: 16, padding: "10px 16px", display: "flex", alignItems: "center", gap: 10,
+      boxShadow: "0 4px 0 #1a1410", whiteSpace: "nowrap",
+    }}>
+      <Mascot name="Boba" size={36} />
+      <div style={{ fontFamily: "Fredoka, sans-serif", fontWeight: 600, fontSize: 15, color: "#1a1410" }}>记下来啦！</div>
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────
+// HOME SCREEN
+// ─────────────────────────────────────────────────────────────
+function HomeScreen({ palette, tweaks }) {
+  const totalBudget = FAMILY.reduce((a, f) => a + f.budget, 0);
+  const totalSpent  = FAMILY.reduce((a, f) => a + f.spent,  0);
+  const remaining = totalBudget - totalSpent;
+  const pct = (totalSpent / totalBudget) * 100;
+  const daysLeft = 11;
+
+  const [floating, setFloating] = React.useState(false);
+  React.useEffect(() => {
+    const id = setInterval(() => setFloating(f => !f), 1800);
+    return () => clearInterval(id);
+  }, []);
+
+  return (
+    <div style={{ padding: "8px 16px 100px", position: "relative", zIndex: 1 }}>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginTop: 8, marginBottom: 12 }}>
+        <div>
+          <div style={{ fontFamily: "Fredoka, sans-serif", fontSize: 26, fontWeight: 600, color: "#1a1410", lineHeight: 1 }}>
+            你好呀！<span style={{ display: "inline-block", animation: "wave 1.6s ease-in-out infinite" }}>👋</span>
+          </div>
+          <div style={{ fontSize: 13, color: "rgba(26,20,16,0.55)", marginTop: 4, fontWeight: 600 }}>
+            五月还剩 <span style={{ color: palette.primaryDeep }}>{daysLeft} 天</span>
+          </div>
+        </div>
+        <div style={{ display: "flex", gap: 8 }}>
+          <button style={iconBtn}>🔔</button>
+          <button style={iconBtn}>⚙️</button>
+        </div>
+      </div>
+
+      <Card color={palette.primary} style={{ marginBottom: 14, overflow: "hidden" }}>
+        <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between" }}>
+          <div style={{ flex: 1 }}>
+            <div style={{ fontSize: 12, fontWeight: 700, color: "#1a1410", opacity: 0.7, textTransform: "uppercase", letterSpacing: 0.5 }}>本月已用</div>
+            <div style={{ fontFamily: "Fredoka, sans-serif", fontSize: 44, fontWeight: 600, color: "#1a1410", lineHeight: 1, marginTop: 4 }}>
+              {yuan(totalSpent, 0)}
+            </div>
+            <div style={{ fontSize: 13, color: "#1a1410", opacity: 0.65, fontWeight: 600, marginTop: 2 }}>
+              共 {yuan(totalBudget, 0)} · 还剩 {yuan(remaining, 0)}
+            </div>
+          </div>
+          <div style={{
+            transform: `translateY(${floating ? -3 : 3}px)`,
+            transition: "transform 1.8s ease-in-out",
+            marginTop: -8, marginRight: -8,
+          }}>
+            <Mascot name={tweaks.mascot} size={110} />
+          </div>
+        </div>
+        <div style={{ marginTop: 14 }}>
+          <Progress value={pct} color="#FFE08A" height={16} />
+          <div style={{ display: "flex", justifyContent: "space-between", marginTop: 6, fontSize: 11, fontWeight: 700, color: "#1a1410" }}>
+            <span>{pct.toFixed(0)}% 已用</span>
+            <span>日均建议 {yuan(remaining / daysLeft, 0)}</span>
+          </div>
+        </div>
+      </Card>
+
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 14 }}>
+        <Card color="#FFF" style={{ padding: 14 }}>
+          <div style={{ fontSize: 11, fontWeight: 700, color: "rgba(26,20,16,0.55)", textTransform: "uppercase" }}>今日</div>
+          <div style={{ fontFamily: "Fredoka, sans-serif", fontSize: 24, fontWeight: 600, color: "#1a1410" }}>{yuan(218.5, 0)}</div>
+          <Chip color="#FFDFC9" style={{ marginTop: 6, fontSize: 10 }}>↓ 比昨天少 12%</Chip>
+        </Card>
+        <Card color="#FFF" style={{ padding: 14 }}>
+          <div style={{ fontSize: 11, fontWeight: 700, color: "rgba(26,20,16,0.55)", textTransform: "uppercase" }}>本周</div>
+          <div style={{ fontFamily: "Fredoka, sans-serif", fontSize: 24, fontWeight: 600, color: "#1a1410" }}>{yuan(1480, 0)}</div>
+          <Chip color="#D5F0DA" style={{ marginTop: 6, fontSize: 10 }}>↑ 在预算内</Chip>
+        </Card>
+      </div>
+
+      <SectionHeader title="花在哪里" sub="本月分类" />
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10, marginBottom: 18 }}>
+        {CATEGORIES.map(c => {
+          const cpct = (c.spent / c.budget) * 100;
+          return (
+            <Card key={c.id} color="#FFF" style={{ padding: 10, textAlign: "center" }}>
+              <div style={{ display: "flex", justifyContent: "center", marginBottom: 2 }}>
+                <Mascot name={c.creature} size={56} />
+              </div>
+              <div style={{ fontWeight: 800, fontSize: 13, color: "#1a1410" }}>{c.name}</div>
+              <div style={{ fontFamily: "Fredoka, sans-serif", fontSize: 15, fontWeight: 600, color: "#1a1410", marginTop: 2 }}>
+                {yuan(c.spent, 0)}
+              </div>
+              <div style={{ marginTop: 6 }}>
+                <Progress value={cpct} color={c.color} height={6} />
+              </div>
+            </Card>
+          );
+        })}
+      </div>
+
+      <SectionHeader title="家庭成员" sub="本月支出" />
+      <div style={{ display: "flex", flexDirection: "column", gap: 10, marginBottom: 18 }}>
+        {FAMILY.map(f => {
+          const fpct = (f.spent / f.budget) * 100;
+          return (
+            <Card key={f.id} color="#FFF" style={{ padding: 12, display: "flex", alignItems: "center", gap: 12 }}>
+              <div style={{
+                width: 54, height: 54, borderRadius: 18, background: f.color,
+                border: "2px solid #1a1410", display: "flex", alignItems: "center", justifyContent: "center",
+                boxShadow: "0 2px 0 #1a1410", flexShrink: 0,
+              }}>
+                <Mascot name={f.creature} size={48} />
+              </div>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
+                  <div style={{ fontWeight: 800, fontSize: 15, color: "#1a1410" }}>{f.name}</div>
+                  <div style={{ fontFamily: "Fredoka, sans-serif", fontSize: 16, fontWeight: 600, color: "#1a1410" }}>
+                    {yuan(f.spent, 0)}
+                  </div>
+                </div>
+                <div style={{ fontSize: 11, color: "rgba(26,20,16,0.55)", fontWeight: 600, marginBottom: 6 }}>
+                  预算 {yuan(f.budget, 0)} · {fpct.toFixed(0)}%
+                </div>
+                <Progress value={fpct} color={f.color} height={7} />
+              </div>
+            </Card>
+          );
+        })}
+      </div>
+
+      <SectionHeader title="最近的小账" right={<span style={{ fontSize: 12, fontWeight: 700, color: palette.primaryDeep }}>查看全部 →</span>} />
+      <Card color="#FFF" style={{ padding: 0, overflow: "hidden" }}>
+        {RECENT.slice(0, 5).map((r, i) => (
+          <div key={r.id} style={{
+            display: "flex", alignItems: "center", gap: 12, padding: tweaks.denseList ? "8px 14px" : "12px 14px",
+            borderBottom: i < 4 ? "1.5px dashed rgba(26,20,16,0.12)" : "none",
+          }}>
+            <div style={{
+              width: 40, height: 40, borderRadius: 12, background: r.color,
+              border: "2px solid #1a1410", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0,
+            }}>
+              <Mascot name={r.creature} size={34} />
+            </div>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ fontWeight: 800, fontSize: 13, color: "#1a1410" }}>{r.cat}</div>
+              <div style={{ fontSize: 11, color: "rgba(26,20,16,0.55)", fontWeight: 600 }}>
+                {r.who} · {r.time}{r.note && ` · ${r.note}`}
+              </div>
+            </div>
+            <div style={{ fontFamily: "Fredoka, sans-serif", fontSize: 16, fontWeight: 600, color: "#1a1410" }}>
+              -{yuan(r.amount, 2)}
+            </div>
+          </div>
+        ))}
+      </Card>
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────
+// ADD SCREEN
+// ─────────────────────────────────────────────────────────────
+function AddScreen({ palette, tweaks, onSave }) {
+  const [amount, setAmount] = React.useState("0");
+  const [cat, setCat] = React.useState("food");
+  const [who, setWho] = React.useState("mom");
+  const [note, setNote] = React.useState("");
+
+  const press = (k) => {
+    setAmount(a => {
+      if (k === "←") return a.length > 1 ? a.slice(0, -1) : "0";
+      if (k === ".") return a.includes(".") ? a : a + ".";
+      if (a === "0" && k !== ".") return k;
+      if (a.includes(".") && a.split(".")[1]?.length >= 2) return a;
+      return a + k;
+    });
+  };
+
+  const keys = [["1","2","3"],["4","5","6"],["7","8","9"],[".","0","←"]];
+
+  return (
+    <div style={{ padding: "8px 16px 110px", position: "relative", zIndex: 1 }}>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginTop: 8, marginBottom: 14 }}>
+        <div>
+          <h2 style={{ fontFamily: "Fredoka, sans-serif", fontSize: 26, fontWeight: 600, color: "#1a1410", margin: 0 }}>记一笔</h2>
+          <div style={{ fontSize: 12, color: "rgba(26,20,16,0.55)", fontWeight: 600 }}>选个小怪兽，告诉它你花了多少</div>
+        </div>
+        <Mascot name={CATEGORIES.find(c => c.id === cat)?.creature || "Yumi"} size={64} />
+      </div>
+
+      <Card color={palette.primary} style={{ marginBottom: 14, textAlign: "center", padding: "20px 16px" }}>
+        <div style={{ fontSize: 11, fontWeight: 800, color: "#1a1410", opacity: 0.65, textTransform: "uppercase", letterSpacing: 1 }}>金额</div>
+        <div style={{ display: "flex", alignItems: "baseline", justifyContent: "center", gap: 4, marginTop: 6 }}>
+          <span style={{ fontFamily: "Fredoka, sans-serif", fontSize: 32, fontWeight: 600, color: "#1a1410" }}>¥</span>
+          <span style={{ fontFamily: "Fredoka, sans-serif", fontSize: 56, fontWeight: 600, color: "#1a1410", lineHeight: 1 }}>{amount}</span>
+        </div>
+      </Card>
+
+      <div style={{ marginBottom: 12 }}>
+        <div style={{ fontSize: 12, fontWeight: 800, color: "rgba(26,20,16,0.6)", marginBottom: 8, textTransform: "uppercase", letterSpacing: 0.5 }}>分类</div>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8 }}>
+          {CATEGORIES.map(c => {
+            const sel = c.id === cat;
+            return (
+              <div key={c.id} onClick={() => setCat(c.id)} style={{
+                background: sel ? c.color : "#FFF",
+                border: "2px solid #1a1410", borderRadius: 16,
+                boxShadow: sel ? "0 3px 0 #1a1410" : "0 2px 0 #1a1410",
+                padding: 8, textAlign: "center", cursor: "pointer",
+                transform: sel ? "translateY(-1px)" : "none",
+                transition: "all 120ms",
+              }}>
+                <Mascot name={c.creature} size={44} />
+                <div style={{ fontSize: 12, fontWeight: 800, color: "#1a1410", marginTop: 2 }}>{c.name}</div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      <div style={{ marginBottom: 12 }}>
+        <div style={{ fontSize: 12, fontWeight: 800, color: "rgba(26,20,16,0.6)", marginBottom: 8, textTransform: "uppercase", letterSpacing: 0.5 }}>谁付的</div>
+        <div style={{ display: "flex", gap: 8, overflowX: "auto" }}>
+          {FAMILY.map(f => {
+            const sel = f.id === who;
+            return (
+              <div key={f.id} onClick={() => setWho(f.id)} style={{
+                background: sel ? f.color : "#FFF",
+                border: "2px solid #1a1410", borderRadius: 14,
+                boxShadow: sel ? "0 3px 0 #1a1410" : "0 2px 0 #1a1410",
+                padding: "6px 10px 6px 6px", display: "flex", alignItems: "center", gap: 6,
+                cursor: "pointer", flexShrink: 0,
+                transform: sel ? "translateY(-1px)" : "none",
+                transition: "all 120ms",
+              }}>
+                <Mascot name={f.creature} size={36} />
+                <div style={{ fontSize: 13, fontWeight: 800, color: "#1a1410" }}>{f.name}</div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      <div style={{ marginBottom: 14 }}>
+        <input
+          type="text"
+          placeholder="加点小备注… (可选)"
+          value={note}
+          onChange={(e) => setNote(e.target.value)}
+          style={{
+            width: "100%", boxSizing: "border-box",
+            padding: "12px 14px", borderRadius: 14,
+            border: "2px solid #1a1410", boxShadow: "0 2px 0 #1a1410",
+            fontSize: 14, fontFamily: "inherit", fontWeight: 600,
+            background: "#FFF", color: "#1a1410", outline: "none",
+          }}
+        />
+      </div>
+
+      <Card color="#FFF" style={{ padding: 10, marginBottom: 10 }}>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 6 }}>
+          {keys.flat().map(k => (
+            <button key={k} onClick={() => press(k)} style={{
+              padding: "12px 0", borderRadius: 12,
+              border: "2px solid #1a1410", boxShadow: "0 2px 0 #1a1410",
+              background: "#FFF6E9", fontFamily: "Fredoka, sans-serif",
+              fontSize: 22, fontWeight: 600, color: "#1a1410", cursor: "pointer",
+            }}>{k}</button>
+          ))}
+        </div>
+      </Card>
+
+      <button onClick={() => { onSave({ amount, cat, who, note }); setAmount("0"); setNote(""); }} style={{
+        width: "100%", padding: "16px 0", borderRadius: 18,
+        border: "2px solid #1a1410", boxShadow: "0 4px 0 #1a1410",
+        background: palette.primaryDeep, color: "#1a1410",
+        fontFamily: "Fredoka, sans-serif", fontSize: 18, fontWeight: 600,
+        cursor: "pointer",
+      }}>记好啦 ✨</button>
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────
+// GOALS SCREEN
+// ─────────────────────────────────────────────────────────────
+function GoalsScreen({ palette }) {
+  return (
+    <div style={{ padding: "8px 16px 110px", position: "relative", zIndex: 1 }}>
+      <div style={{ marginTop: 8, marginBottom: 14 }}>
+        <h2 style={{ fontFamily: "Fredoka, sans-serif", fontSize: 26, fontWeight: 600, color: "#1a1410", margin: 0 }}>梦想储蓄罐</h2>
+        <div style={{ fontSize: 13, color: "rgba(26,20,16,0.55)", fontWeight: 600 }}>一起攒一点，慢慢就到啦</div>
+      </div>
+
+      <Card color={palette.primary} style={{ marginBottom: 16, display: "flex", alignItems: "center", gap: 14 }}>
+        <div style={{ flex: 1 }}>
+          <div style={{ fontSize: 11, fontWeight: 800, color: "#1a1410", opacity: 0.65, textTransform: "uppercase", letterSpacing: 0.5 }}>已存</div>
+          <div style={{ fontFamily: "Fredoka, sans-serif", fontSize: 36, fontWeight: 600, color: "#1a1410", lineHeight: 1 }}>
+            {yuan(GOALS.reduce((a, g) => a + g.saved, 0), 0)}
+          </div>
+          <div style={{ fontSize: 12, color: "#1a1410", opacity: 0.7, fontWeight: 700, marginTop: 4 }}>
+            离目标还差 {yuan(GOALS.reduce((a, g) => a + (g.target - g.saved), 0), 0)}
+          </div>
+        </div>
+        <div style={{ display: "flex", alignItems: "center" }}>
+          <Coin size={30} />
+          <Coin size={36} style={{ marginLeft: -8 }} />
+          <Coin size={28} style={{ marginLeft: -8 }} />
+        </div>
+      </Card>
+
+      {GOALS.map(g => {
+        const pct = (g.saved / g.target) * 100;
+        return (
+          <Card key={g.id} color="#FFF" style={{ marginBottom: 12, padding: 14 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 10 }}>
+              <div style={{
+                width: 60, height: 60, borderRadius: 18, background: g.color,
+                border: "2px solid #1a1410", display: "flex", alignItems: "center", justifyContent: "center",
+                boxShadow: "0 2px 0 #1a1410", flexShrink: 0,
+              }}>
+                <Mascot name={g.creature} size={52} />
+              </div>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontWeight: 800, fontSize: 16, color: "#1a1410" }}>{g.name}</div>
+                <div style={{ display: "flex", alignItems: "baseline", gap: 6, marginTop: 2 }}>
+                  <span style={{ fontFamily: "Fredoka, sans-serif", fontSize: 20, fontWeight: 600, color: "#1a1410" }}>
+                    {yuan(g.saved, 0)}
+                  </span>
+                  <span style={{ fontSize: 12, color: "rgba(26,20,16,0.55)", fontWeight: 700 }}>
+                    / {yuan(g.target, 0)}
+                  </span>
+                </div>
+              </div>
+              <Chip color={g.color}>{g.days} 天</Chip>
+            </div>
+            <Progress value={pct} color={g.color} height={14} />
+            <div style={{ display: "flex", justifyContent: "space-between", marginTop: 6, fontSize: 11, fontWeight: 700, color: "rgba(26,20,16,0.6)" }}>
+              <span>{pct.toFixed(0)}% 完成</span>
+              <span>每天存 {yuan((g.target - g.saved) / g.days, 0)} 就行</span>
+            </div>
+          </Card>
+        );
+      })}
+
+      <div style={{
+        marginTop: 8, padding: "14px 16px", borderRadius: 18,
+        border: "2px dashed #1a1410", textAlign: "center",
+        color: "#1a1410", fontWeight: 800, fontSize: 14, cursor: "pointer",
+      }}>+ 添加新目标</div>
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────
+// FAMILY SCREEN
+// ─────────────────────────────────────────────────────────────
+function FamilyScreen({ palette }) {
+  const [open, setOpen] = React.useState(FAMILY[0].id);
+  const member = FAMILY.find(f => f.id === open);
+  const memberCats = CATEGORIES.map(c => ({ ...c, share: (Math.abs(Math.sin(c.id.charCodeAt(0) * 17 + member.id.charCodeAt(0))) * 0.4 + 0.05) }));
+
+  return (
+    <div style={{ padding: "8px 16px 110px", position: "relative", zIndex: 1 }}>
+      <div style={{ marginTop: 8, marginBottom: 14 }}>
+        <h2 style={{ fontFamily: "Fredoka, sans-serif", fontSize: 26, fontWeight: 600, color: "#1a1410", margin: 0 }}>一家人</h2>
+        <div style={{ fontSize: 13, color: "rgba(26,20,16,0.55)", fontWeight: 600 }}>点一下看 ta 的小账本</div>
+      </div>
+
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr", gap: 8, marginBottom: 16 }}>
+        {FAMILY.map(f => {
+          const sel = f.id === open;
+          return (
+            <div key={f.id} onClick={() => setOpen(f.id)} style={{
+              background: sel ? f.color : "#FFF",
+              border: "2px solid #1a1410", borderRadius: 16,
+              boxShadow: sel ? "0 3px 0 #1a1410" : "0 2px 0 #1a1410",
+              padding: 8, textAlign: "center", cursor: "pointer",
+              transform: sel ? "translateY(-2px)" : "none",
+              transition: "all 150ms",
+            }}>
+              <Mascot name={f.creature} size={52} />
+              <div style={{ fontSize: 12, fontWeight: 800, color: "#1a1410", marginTop: 2 }}>{f.name}</div>
+            </div>
+          );
+        })}
+      </div>
+
+      <Card color={member.color} style={{ marginBottom: 14 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
+          <Mascot name={member.creature} size={90} />
+          <div style={{ flex: 1 }}>
+            <div style={{ fontFamily: "Fredoka, sans-serif", fontSize: 22, fontWeight: 600, color: "#1a1410" }}>{member.name}</div>
+            <div style={{ fontSize: 12, color: "#1a1410", opacity: 0.7, fontWeight: 700, marginTop: 2 }}>本月预算 {yuan(member.budget, 0)}</div>
+            <div style={{ display: "flex", gap: 6, marginTop: 8 }}>
+              <Chip color="#FFF">已用 {yuan(member.spent, 0)}</Chip>
+              <Chip color="#FFE08A">剩 {yuan(member.budget - member.spent, 0)}</Chip>
+            </div>
+          </div>
+        </div>
+        <div style={{ marginTop: 14 }}>
+          <Progress value={(member.spent / member.budget) * 100} color="#FFF" height={14} />
+        </div>
+      </Card>
+
+      <SectionHeader title="花在哪里" />
+      <Card color="#FFF" style={{ padding: 14, marginBottom: 14 }}>
+        {memberCats.map((c, i) => {
+          const amt = Math.round(member.spent * c.share);
+          return (
+            <div key={c.id} style={{
+              display: "flex", alignItems: "center", gap: 10,
+              padding: "8px 0",
+              borderBottom: i < memberCats.length - 1 ? "1.5px dashed rgba(26,20,16,0.1)" : "none",
+            }}>
+              <Mascot name={c.creature} size={36} />
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ display: "flex", justifyContent: "space-between" }}>
+                  <span style={{ fontSize: 13, fontWeight: 800, color: "#1a1410" }}>{c.name}</span>
+                  <span style={{ fontFamily: "Fredoka, sans-serif", fontSize: 14, fontWeight: 600, color: "#1a1410" }}>{yuan(amt, 0)}</span>
+                </div>
+                <div style={{ marginTop: 4 }}>
+                  <Progress value={c.share * 100} color={c.color} height={6} />
+                </div>
+              </div>
+            </div>
+          );
+        })}
+      </Card>
+
+      <SectionHeader title="最近" />
+      <Card color="#FFF" style={{ padding: 0, overflow: "hidden" }}>
+        {RECENT.filter(r => r.who === member.name).slice(0, 4).map((r, i, arr) => (
+          <div key={r.id} style={{
+            display: "flex", alignItems: "center", gap: 12, padding: "12px 14px",
+            borderBottom: i < arr.length - 1 ? "1.5px dashed rgba(26,20,16,0.12)" : "none",
+          }}>
+            <div style={{
+              width: 38, height: 38, borderRadius: 12, background: r.color,
+              border: "2px solid #1a1410", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0,
+            }}>
+              <Mascot name={r.creature} size={32} />
+            </div>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ fontWeight: 800, fontSize: 13, color: "#1a1410" }}>{r.cat}</div>
+              <div style={{ fontSize: 11, color: "rgba(26,20,16,0.55)", fontWeight: 600 }}>{r.time}</div>
+            </div>
+            <div style={{ fontFamily: "Fredoka, sans-serif", fontSize: 15, fontWeight: 600, color: "#1a1410" }}>-{yuan(r.amount, 2)}</div>
+          </div>
+        ))}
+        {RECENT.filter(r => r.who === member.name).length === 0 && (
+          <div style={{ padding: 24, textAlign: "center", color: "rgba(26,20,16,0.5)", fontWeight: 700, fontSize: 13 }}>
+            这个月还没记小账～
+          </div>
+        )}
+      </Card>
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────
+// INSIGHTS SCREEN
+// ─────────────────────────────────────────────────────────────
+function InsightsScreen({ palette }) {
+  const max = Math.max(...MONTH_DAYS);
+  const total = MONTH_DAYS.reduce((a, b) => a + b, 0);
+  const avg = total / MONTH_DAYS.filter(d => d > 0).length;
+  const days = ["一", "二", "三", "四", "五", "六", "日"];
+
+  const weeks = [
+    { label: "1周", v: 1340 }, { label: "2周", v: 1820 },
+    { label: "3周", v: 1640 }, { label: "4周", v: 1080 },
+  ];
+  const wMax = Math.max(...weeks.map(w => w.v));
+
+  return (
+    <div style={{ padding: "8px 16px 110px", position: "relative", zIndex: 1 }}>
+      <div style={{ marginTop: 8, marginBottom: 14 }}>
+        <h2 style={{ fontFamily: "Fredoka, sans-serif", fontSize: 26, fontWeight: 600, color: "#1a1410", margin: 0 }}>看一看</h2>
+        <div style={{ fontSize: 13, color: "rgba(26,20,16,0.55)", fontWeight: 600 }}>你们家这个月的小习惯</div>
+      </div>
+
+      <Card color={palette.primary} style={{ marginBottom: 14, display: "flex", alignItems: "center", gap: 12 }}>
+        <Mascot name="Pip" size={70} />
+        <div style={{ flex: 1 }}>
+          <div style={{ fontSize: 12, fontWeight: 800, color: "#1a1410", opacity: 0.7 }}>本月最大笔</div>
+          <div style={{ fontFamily: "Fredoka, sans-serif", fontSize: 24, fontWeight: 600, color: "#1a1410", lineHeight: 1, marginTop: 2 }}>{yuan(420, 0)}</div>
+          <div style={{ fontSize: 12, color: "#1a1410", opacity: 0.7, fontWeight: 700, marginTop: 2 }}>爸爸买的健身年卡 💪</div>
+        </div>
+      </Card>
+
+      <Card color="#FFF" style={{ marginBottom: 14 }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 12 }}>
+          <div style={{ fontFamily: "Fredoka, sans-serif", fontSize: 16, fontWeight: 600, color: "#1a1410" }}>每周花销</div>
+          <Chip color={palette.chip}>本月</Chip>
+        </div>
+        <div style={{ display: "flex", alignItems: "flex-end", gap: 10, height: 140, paddingBottom: 26 }}>
+          {weeks.map((w, i) => {
+            const h = (w.v / wMax) * 110;
+            const colors = [palette.primary, palette.primaryDeep, "#FFE08A", "#A8D8F0"];
+            return (
+              <div key={i} style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: 6, position: "relative" }}>
+                <div style={{ fontFamily: "Fredoka, sans-serif", fontSize: 11, fontWeight: 700, color: "#1a1410" }}>
+                  {yuan(w.v, 0)}
+                </div>
+                <div style={{
+                  width: "100%", height: h, background: colors[i % colors.length],
+                  border: "2px solid #1a1410", borderRadius: "10px 10px 4px 4px",
+                  boxShadow: "0 2px 0 #1a1410",
+                  backgroundImage: "linear-gradient(180deg, rgba(255,255,255,0.4) 0%, rgba(255,255,255,0) 60%)",
+                }} />
+                <div style={{ position: "absolute", bottom: -22, fontSize: 11, color: "rgba(26,20,16,0.6)", fontWeight: 700 }}>{w.label}</div>
+              </div>
+            );
+          })}
+        </div>
+      </Card>
+
+      <Card color="#FFF" style={{ marginBottom: 14 }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 12 }}>
+          <div style={{ fontFamily: "Fredoka, sans-serif", fontSize: 16, fontWeight: 600, color: "#1a1410" }}>每日小账</div>
+          <Chip color={palette.chip}>五月</Chip>
+        </div>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: 6 }}>
+          {days.map(d => (
+            <div key={d} style={{ fontSize: 10, fontWeight: 800, color: "rgba(26,20,16,0.5)", textAlign: "center" }}>{d}</div>
+          ))}
+          {MONTH_DAYS.map((v, i) => {
+            const intensity = v === 0 ? 0 : v / max;
+            const alpha = v === 0 ? 0.08 : 0.15 + intensity * 0.75;
+            const bg = v === 0 ? "#F2EDE5" : blendColor(palette.primaryDeep, alpha);
+            return (
+              <div key={i} style={{
+                aspectRatio: "1 / 1", borderRadius: 8,
+                background: bg, border: "1.5px solid #1a1410",
+                display: "flex", alignItems: "center", justifyContent: "center",
+                fontSize: 9, fontWeight: 800, color: v > 200 ? "#1a1410" : "rgba(26,20,16,0.5)",
+              }}>{i + 1}</div>
+            );
+          })}
+        </div>
+        <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 12, fontSize: 11, fontWeight: 700, color: "rgba(26,20,16,0.6)" }}>
+          少
+          {[0.15, 0.35, 0.6, 0.85].map((t, i) => (
+            <div key={i} style={{
+              width: 14, height: 14, borderRadius: 4, border: "1px solid #1a1410",
+              background: blendColor(palette.primaryDeep, t),
+            }} />
+          ))}
+          多
+          <span style={{ marginLeft: "auto" }}>日均 {yuan(avg, 0)}</span>
+        </div>
+      </Card>
+
+      <Card color="#FFE08A" style={{ display: "flex", gap: 12, alignItems: "center" }}>
+        <Mascot name="Boba" size={68} />
+        <div style={{ flex: 1 }}>
+          <div style={{ fontFamily: "Fredoka, sans-serif", fontSize: 15, fontWeight: 600, color: "#1a1410" }}>小提示</div>
+          <div style={{ fontSize: 13, color: "#1a1410", fontWeight: 600, marginTop: 4, lineHeight: 1.4 }}>
+            这周比上周省了 ¥160 哦！再坚持一下就可以买冰箱啦 🧊
+          </div>
+        </div>
+      </Card>
+    </div>
+  );
+}
+
+function blendColor(hex, alpha) {
+  const h = hex.replace('#', '');
+  const r = parseInt(h.slice(0,2),16);
+  const g = parseInt(h.slice(2,4),16);
+  const b = parseInt(h.slice(4,6),16);
+  const rOut = Math.round(r * alpha + 255 * (1 - alpha));
+  const gOut = Math.round(g * alpha + 255 * (1 - alpha));
+  const bOut = Math.round(b * alpha + 255 * (1 - alpha));
+  return `rgb(${rOut},${gOut},${bOut})`;
+}
+
+// ─────────────────────────────────────────────────────────────
+// MAIN APP
+// ─────────────────────────────────────────────────────────────
+function App() {
+  const [t, setTweak] = useTweaks(TWEAK_DEFAULTS);
+  const [tab, setTab] = React.useState("home");
+  const [toast, setToast] = React.useState(false);
+  const palette = PALETTES[t.palette] || PALETTES.taro;
+
+  const screens = {
+    home:     <HomeScreen palette={palette} tweaks={t} />,
+    add:      <AddScreen palette={palette} tweaks={t} onSave={() => { setToast(true); setTab("home"); }} />,
+    goals:    <GoalsScreen palette={palette} tweaks={t} />,
+    family:   <FamilyScreen palette={palette} tweaks={t} />,
+    insights: <InsightsScreen palette={palette} tweaks={t} />,
+  };
+
+  return (
+    <div className="stage">
+      {/* Left decoration */}
+      <div className="title-block side-deco" style={{ left: "calc(50% - 480px)", top: "50%", transform: "translateY(-50%)", textAlign: "right", width: 260 }}>
+        <div style={{ display: "inline-flex", alignItems: "center", gap: 10, marginBottom: 10, padding: "4px 12px", border: "2px solid #1a1410", borderRadius: 999, background: "#FFE08A", fontWeight: 800, fontSize: 12, boxShadow: "0 2px 0 #1a1410" }}>
+          <Mascot name="Boba" size={26} />
+          <span>Mochi&nbsp;Money</span>
+        </div>
+        <div className="ko" style={{ fontSize: 56 }}>家里的<br/>小账本</div>
+        <div className="sub" style={{ fontSize: 13, lineHeight: 1.5 }}>一只小怪兽帮你看着钱包<br/>边记账边攒小钱钱</div>
+      </div>
+
+      {/* Phone */}
+      <div style={{ position: "relative", filter: "drop-shadow(0 30px 60px rgba(26,20,16,0.18))" }}>
+        <IOSDevice width={402} height={874} dark={false}>
+          <div className="phone-scroll" style={{
+            width: "100%", height: "100%", overflow: "auto",
+            background: `linear-gradient(180deg, ${palette.bg} 0%, ${palette.bg2} 100%)`,
+            position: "relative",
+          }}>
+            <div style={{ paddingTop: 56, position: "relative", zIndex: 1, minHeight: "100%" }}>
+              <StickerLayer palette={palette} show={t.showStickers} />
+              {screens[tab]}
+            </div>
+          </div>
+          <TabBar active={tab} onTab={setTab} palette={palette} />
+          <Toast show={toast} palette={palette} onHide={() => setToast(false)} />
+        </IOSDevice>
+      </div>
+
+      {/* Right decoration */}
+      <div className="title-block side-deco" style={{ right: "calc(50% - 540px)", top: "50%", transform: "translateY(-50%)", width: 280 }}>
+        <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+          <div style={{
+            background: "#FFF", border: "2px solid #1a1410", borderRadius: 18,
+            boxShadow: "0 4px 0 #1a1410", padding: 14,
+          }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
+              <Mascot name="Yumi" size={36} />
+              <div style={{ fontFamily: "Fredoka, sans-serif", fontWeight: 600, fontSize: 15 }}>六只小怪兽</div>
+            </div>
+            <div style={{ fontSize: 12, fontWeight: 700, color: "rgba(26,20,16,0.6)", lineHeight: 1.5 }}>
+              每只对应一个分类。它们会陪着你一起花钱、攒钱。
+            </div>
+            <div style={{ display: "flex", gap: 2, marginTop: 8 }}>
+              {["Yumi","Zoomi","Cozy","Pip","Posy","Heart"].map(n => (
+                <Mascot key={n} name={n} size={32} />
+              ))}
+            </div>
+          </div>
+
+          <div style={{
+            background: "#C9B8E8", border: "2px solid #1a1410", borderRadius: 18,
+            boxShadow: "0 4px 0 #1a1410", padding: 14,
+          }}>
+            <div style={{ fontFamily: "Fredoka, sans-serif", fontWeight: 600, fontSize: 15 }}>怎么用？</div>
+            <ol style={{ margin: "6px 0 0", paddingLeft: 18, fontSize: 12, fontWeight: 700, lineHeight: 1.6, color: "#1a1410" }}>
+              <li>底部 <b>+</b> 记一笔</li>
+              <li>给每个家人定预算</li>
+              <li>一起为目标存小钱钱</li>
+            </ol>
+          </div>
+
+          <div style={{ fontSize: 11, fontWeight: 700, color: "rgba(26,20,16,0.5)" }}>
+            点右下角 Tweaks 切换主题色 →
+          </div>
+        </div>
+      </div>
+
+      {/* Tweaks panel */}
+      <TweaksPanel>
+        <TweakSection label="主题色" />
+        <TweakRadio
+          label="调色板"
+          value={t.palette}
+          options={Object.keys(PALETTES).map(k => ({ value: k, label: PALETTES[k].name }))}
+          onChange={(v) => setTweak("palette", v)}
+        />
+        <TweakSection label="主角小怪兽" />
+        <TweakRadio
+          label="首页主角"
+          value={t.mascot}
+          options={["Boba", "Yumi", "Heart", "Pip"]}
+          onChange={(v) => setTweak("mascot", v)}
+        />
+        <TweakSection label="装饰" />
+        <TweakToggle label="背景星星" value={t.showStickers} onChange={(v) => setTweak("showStickers", v)} />
+        <TweakToggle label="紧凑列表" value={t.denseList} onChange={(v) => setTweak("denseList", v)} />
+      </TweaksPanel>
+    </div>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById("root")).render(<App />);
+</script>
+
+</body>
+</html>
