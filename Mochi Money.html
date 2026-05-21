@@ -450,6 +450,34 @@ function Posy({ size = 80, color = "#F2B8DC", accent = "#D98BC4", style }) {
   );
 }
 
+// ─────────────────────────────────────────────────────────────
+// ELEPHANT — big round ears, cute trunk, chubby body
+// ─────────────────────────────────────────────────────────────
+function Elephant({ size = 80, color = "#FFAAAA", accent = "#FF7070", style }) {
+  return (
+    <svg viewBox="-54 -54 108 112" width={size} height={size} style={style}>
+      <ellipse cx="0" cy="52" rx="26" ry="4" fill="#000" opacity="0.08" />
+      {/* left ear */}
+      <ellipse cx="-37" cy="0" rx="17" ry="21" fill={color} stroke="#1a1410" strokeWidth="2" />
+      <ellipse cx="-37" cy="0" rx="10" ry="13" fill={accent} opacity="0.38" />
+      {/* right ear */}
+      <ellipse cx="37" cy="0" rx="17" ry="21" fill={color} stroke="#1a1410" strokeWidth="2" />
+      <ellipse cx="37" cy="0" rx="10" ry="13" fill={accent} opacity="0.38" />
+      {/* body */}
+      <path d="M-26 -8 Q-30 -30 -14 -36 Q0 -42 14 -36 Q30 -30 26 -8 Q30 24 14 36 Q0 44 -14 36 Q-30 24 -26 -8 Z"
+        fill={color} stroke="#1a1410" strokeWidth="2.2" strokeLinejoin="round" />
+      {/* belly highlight */}
+      <ellipse cx="0" cy="16" rx="14" ry="10" fill="#fff" opacity="0.3" />
+      {/* trunk */}
+      <path d="M-4 26 Q-10 36 -8 44 Q-4 50 0 48 Q4 46 4 40 Q6 30 2 22 Q0 20 -4 26 Z"
+        fill={color} stroke="#1a1410" strokeWidth="2" strokeLinejoin="round" />
+      <Eyes cx1={-9} cx2={9} cy={-5} r={4.8} />
+      <Cheeks cx1={-19} cx2={19} cy={9} />
+      <FangSmile cy={9} w={7} />
+    </svg>
+  );
+}
+
 function Coin({ size = 28, style }) {
   return (
     <svg viewBox="-20 -20 40 40" width={size} height={size} style={style}>
@@ -461,11 +489,14 @@ function Coin({ size = 28, style }) {
   );
 }
 
-const CREATURES = { Boba, Yumi, Zoomi, Cozy, Heart, Pip, Posy };
+const CREATURES = { Boba, Yumi, Zoomi, Cozy, Heart, Pip, Posy, Elephant };
 
-function Mascot({ name, size, ...rest }) {
+function Mascot({ name, size, color, accent, ...rest }) {
   const C = CREATURES[name] || Boba;
-  return <C size={size} {...rest} />;
+  const props = { size, ...rest };
+  if (color !== undefined) props.color = color;
+  if (accent !== undefined) props.accent = accent;
+  return <C {...props} />;
 }
 
 // ─────────────────────────────────────────────────────────────
@@ -542,10 +573,10 @@ function IOSDevice({ children, width = 402, height = 874, dark = false }) {
 // DATA
 // ─────────────────────────────────────────────────────────────
 const FAMILY = [
-  { id: "mom",  name: "妈妈",  creature: "Heart", color: "#FFB5C5", accent: "#FF8FA6", budget: 4500, spent: 2840 },
-  { id: "dad",  name: "爸爸",  creature: "Zoomi", color: "#A8D8F0", accent: "#7BB8DC", budget: 5200, spent: 3920 },
-  { id: "kid1", name: "小米",  creature: "Pip",   color: "#FFE08A", accent: "#F2C04C", budget: 1800, spent: 720 },
-  { id: "kid2", name: "豆豆",  creature: "Cozy",  color: "#B8E0B5", accent: "#88C68A", budget: 1200, spent: 510 },
+  { id: "mom",  name: "妈妈",  creature: "Heart",    color: "#FFB5C5", accent: "#FF8FA6", budget: 4500, spent: 2840 },
+  { id: "dad",  name: "爸爸",  creature: "Zoomi",    color: "#C4A8F0", accent: "#9B78D4", budget: 5200, spent: 3920 },
+  { id: "kid1", name: "小象",  creature: "Elephant", color: "#FFAAAA", accent: "#FF7070", budget: 1800, spent: 720 },
+  { id: "kid2", name: "大象",  creature: "Elephant", color: "#A8D8F0", accent: "#7BB8DC", budget: 1200, spent: 510 },
 ];
 
 const CATEGORIES = [
@@ -558,12 +589,12 @@ const CATEGORIES = [
 ];
 
 const RECENT = [
-  { id: 1, who: "妈妈", cat: "食物超市", amount: 186.50, time: "今天 18:42", creature: "Yumi",  color: "#FFB59E", note: "晚餐食材" },
-  { id: 2, who: "爸爸", cat: "加油站",   amount: 320.00, time: "今天 09:15", creature: "Zoomi", color: "#A8D8F0", note: "" },
-  { id: 3, who: "小米", cat: "文具",     amount: 48.00,  time: "昨天 16:30", creature: "Pip",   color: "#FFE08A", note: "笔记本和铅笔" },
-  { id: 4, who: "妈妈", cat: "咖啡",     amount: 32.00,  time: "昨天 10:08", creature: "Yumi",  color: "#FFB59E", note: "" },
-  { id: 5, who: "爸爸", cat: "电费",     amount: 245.30, time: "前天",       creature: "Cozy",  color: "#B8E0B5", note: "本月" },
-  { id: 6, who: "豆豆", cat: "玩具",     amount: 89.90,  time: "前天",       creature: "Posy",  color: "#F2B8DC", note: "积木" },
+  { id: 1, familyId: "mom",  cat: "食物超市", amount: 186.50, time: "今天 18:42", creature: "Yumi",  color: "#FFB59E", note: "晚餐食材" },
+  { id: 2, familyId: "dad",  cat: "加油站",   amount: 320.00, time: "今天 09:15", creature: "Zoomi", color: "#A8D8F0", note: "" },
+  { id: 3, familyId: "kid1", cat: "文具",     amount: 48.00,  time: "昨天 16:30", creature: "Pip",   color: "#FFE08A", note: "笔记本和铅笔" },
+  { id: 4, familyId: "mom",  cat: "咖啡",     amount: 32.00,  time: "昨天 10:08", creature: "Yumi",  color: "#FFB59E", note: "" },
+  { id: 5, familyId: "dad",  cat: "电费",     amount: 245.30, time: "前天",       creature: "Cozy",  color: "#B8E0B5", note: "本月" },
+  { id: 6, familyId: "kid2", cat: "玩具",     amount: 89.90,  time: "前天",       creature: "Posy",  color: "#F2B8DC", note: "积木" },
 ];
 
 const GOALS = [
@@ -806,9 +837,9 @@ function Toast({ show, palette, onHide }) {
 // ─────────────────────────────────────────────────────────────
 // HOME SCREEN
 // ─────────────────────────────────────────────────────────────
-function HomeScreen({ palette, tweaks }) {
-  const totalBudget = FAMILY.reduce((a, f) => a + f.budget, 0);
-  const totalSpent  = FAMILY.reduce((a, f) => a + f.spent,  0);
+function HomeScreen({ palette, tweaks, members }) {
+  const totalBudget = members.reduce((a, f) => a + f.budget, 0);
+  const totalSpent  = members.reduce((a, f) => a + f.spent,  0);
   const remaining = totalBudget - totalSpent;
   const pct = (totalSpent / totalBudget) * 100;
   const daysLeft = 11;
@@ -900,7 +931,7 @@ function HomeScreen({ palette, tweaks }) {
 
       <SectionHeader title="家庭成员" sub="本月支出" />
       <div style={{ display: "flex", flexDirection: "column", gap: 10, marginBottom: 18 }}>
-        {FAMILY.map(f => {
+        {members.map(f => {
           const fpct = (f.spent / f.budget) * 100;
           return (
             <Card key={f.id} color="#FFF" style={{ padding: 12, display: "flex", alignItems: "center", gap: 12 }}>
@@ -909,7 +940,7 @@ function HomeScreen({ palette, tweaks }) {
                 border: "2px solid #1a1410", display: "flex", alignItems: "center", justifyContent: "center",
                 boxShadow: "0 2px 0 #1a1410", flexShrink: 0,
               }}>
-                <Mascot name={f.creature} size={48} />
+                <Mascot name={f.creature} size={48} color={f.color} accent={f.accent} />
               </div>
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
@@ -944,7 +975,7 @@ function HomeScreen({ palette, tweaks }) {
             <div style={{ flex: 1, minWidth: 0 }}>
               <div style={{ fontWeight: 800, fontSize: 13, color: "#1a1410" }}>{r.cat}</div>
               <div style={{ fontSize: 11, color: "rgba(26,20,16,0.55)", fontWeight: 600 }}>
-                {r.who} · {r.time}{r.note && ` · ${r.note}`}
+                {members.find(f => f.id === r.familyId)?.name} · {r.time}{r.note && ` · ${r.note}`}
               </div>
             </div>
             <div style={{ fontFamily: "Fredoka, sans-serif", fontSize: 16, fontWeight: 600, color: "#1a1410" }}>
@@ -960,7 +991,7 @@ function HomeScreen({ palette, tweaks }) {
 // ─────────────────────────────────────────────────────────────
 // ADD SCREEN
 // ─────────────────────────────────────────────────────────────
-function AddScreen({ palette, tweaks, onSave }) {
+function AddScreen({ palette, tweaks, onSave, members }) {
   const [amount, setAmount] = React.useState("0");
   const [cat, setCat] = React.useState("food");
   const [who, setWho] = React.useState("mom");
@@ -1021,7 +1052,7 @@ function AddScreen({ palette, tweaks, onSave }) {
       <div style={{ marginBottom: 12 }}>
         <div style={{ fontSize: 12, fontWeight: 800, color: "rgba(26,20,16,0.6)", marginBottom: 8, textTransform: "uppercase", letterSpacing: 0.5 }}>谁付的</div>
         <div style={{ display: "flex", gap: 8, overflowX: "auto" }}>
-          {FAMILY.map(f => {
+          {members.map(f => {
             const sel = f.id === who;
             return (
               <div key={f.id} onClick={() => setWho(f.id)} style={{
@@ -1033,7 +1064,7 @@ function AddScreen({ palette, tweaks, onSave }) {
                 transform: sel ? "translateY(-1px)" : "none",
                 transition: "all 120ms",
               }}>
-                <Mascot name={f.creature} size={36} />
+                <Mascot name={f.creature} size={36} color={f.color} accent={f.accent} />
                 <div style={{ fontSize: 13, fontWeight: 800, color: "#1a1410" }}>{f.name}</div>
               </div>
             );
@@ -1153,12 +1184,33 @@ function GoalsScreen({ palette }) {
 }
 
 // ─────────────────────────────────────────────────────────────
-// FAMILY SCREEN
+// FAMILY SCREEN — with editable name + creature
 // ─────────────────────────────────────────────────────────────
-function FamilyScreen({ palette }) {
-  const [open, setOpen] = React.useState(FAMILY[0].id);
-  const member = FAMILY.find(f => f.id === open);
-  const memberCats = CATEGORIES.map(c => ({ ...c, share: (Math.abs(Math.sin(c.id.charCodeAt(0) * 17 + member.id.charCodeAt(0))) * 0.4 + 0.05) }));
+function FamilyScreen({ palette, members, setMemberCustom }) {
+  const [open, setOpen] = React.useState(members[0].id);
+  const [editing, setEditing] = React.useState(false);
+  const [editName, setEditName] = React.useState("");
+  const [editCreature, setEditCreature] = React.useState("");
+
+  const member = members.find(f => f.id === open);
+  const memberCats = CATEGORIES.map(c => ({
+    ...c,
+    share: Math.abs(Math.sin(c.id.charCodeAt(0) * 17 + open.charCodeAt(0))) * 0.4 + 0.05,
+  }));
+
+  const startEdit = () => {
+    setEditName(member.name);
+    setEditCreature(member.creature);
+    setEditing(true);
+  };
+  const cancelEdit = () => setEditing(false);
+  const saveEdit = () => {
+    setMemberCustom(prev => ({
+      ...prev,
+      [open]: { name: editName.trim() || member.name, creature: editCreature },
+    }));
+    setEditing(false);
+  };
 
   return (
     <div style={{ padding: "8px 16px 110px", position: "relative", zIndex: 1 }}>
@@ -1167,11 +1219,12 @@ function FamilyScreen({ palette }) {
         <div style={{ fontSize: 13, color: "rgba(26,20,16,0.55)", fontWeight: 600 }}>点一下看 ta 的小账本</div>
       </div>
 
+      {/* Avatar grid */}
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr", gap: 8, marginBottom: 16 }}>
-        {FAMILY.map(f => {
+        {members.map(f => {
           const sel = f.id === open;
           return (
-            <div key={f.id} onClick={() => setOpen(f.id)} style={{
+            <div key={f.id} onClick={() => { setOpen(f.id); setEditing(false); }} style={{
               background: sel ? f.color : "#FFF",
               border: "2px solid #1a1410", borderRadius: 16,
               boxShadow: sel ? "0 3px 0 #1a1410" : "0 2px 0 #1a1410",
@@ -1179,29 +1232,102 @@ function FamilyScreen({ palette }) {
               transform: sel ? "translateY(-2px)" : "none",
               transition: "all 150ms",
             }}>
-              <Mascot name={f.creature} size={52} />
+              <Mascot name={f.creature} size={52} color={f.color} accent={f.accent} />
               <div style={{ fontSize: 12, fontWeight: 800, color: "#1a1410", marginTop: 2 }}>{f.name}</div>
             </div>
           );
         })}
       </div>
 
-      <Card color={member.color} style={{ marginBottom: 14 }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
-          <Mascot name={member.creature} size={90} />
-          <div style={{ flex: 1 }}>
-            <div style={{ fontFamily: "Fredoka, sans-serif", fontSize: 22, fontWeight: 600, color: "#1a1410" }}>{member.name}</div>
-            <div style={{ fontSize: 12, color: "#1a1410", opacity: 0.7, fontWeight: 700, marginTop: 2 }}>本月预算 {yuan(member.budget, 0)}</div>
-            <div style={{ display: "flex", gap: 6, marginTop: 8 }}>
-              <Chip color="#FFF">已用 {yuan(member.spent, 0)}</Chip>
-              <Chip color="#FFE08A">剩 {yuan(member.budget - member.spent, 0)}</Chip>
+      {/* Edit panel */}
+      {editing ? (
+        <Card color="#FFF" style={{ marginBottom: 14, padding: 16 }}>
+          <div style={{ fontFamily: "Fredoka, sans-serif", fontSize: 18, fontWeight: 600, color: "#1a1410", marginBottom: 14 }}>
+            编辑 {member.name}
+          </div>
+
+          {/* Name input */}
+          <div style={{ marginBottom: 14 }}>
+            <div style={{ fontSize: 11, fontWeight: 800, color: "rgba(26,20,16,0.55)", marginBottom: 6, textTransform: "uppercase", letterSpacing: 0.5 }}>昵称</div>
+            <input
+              value={editName}
+              onChange={e => setEditName(e.target.value)}
+              placeholder={member.name}
+              style={{
+                width: "100%", boxSizing: "border-box",
+                padding: "10px 14px", borderRadius: 12,
+                border: "2px solid #1a1410", boxShadow: "0 2px 0 #1a1410",
+                fontSize: 16, fontFamily: "Fredoka, sans-serif", fontWeight: 600,
+                background: "#FFF", color: "#1a1410", outline: "none",
+              }}
+            />
+          </div>
+
+          {/* Creature picker */}
+          <div style={{ marginBottom: 16 }}>
+            <div style={{ fontSize: 11, fontWeight: 800, color: "rgba(26,20,16,0.55)", marginBottom: 8, textTransform: "uppercase", letterSpacing: 0.5 }}>小怪兽角色</div>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 8 }}>
+              {Object.keys(CREATURES).map(cname => {
+                const sel = cname === editCreature;
+                return (
+                  <div key={cname} onClick={() => setEditCreature(cname)} style={{
+                    background: sel ? palette.primary : "#FFF",
+                    border: "2px solid #1a1410", borderRadius: 14,
+                    boxShadow: sel ? "0 3px 0 #1a1410" : "0 2px 0 #1a1410",
+                    padding: "8px 4px", textAlign: "center", cursor: "pointer",
+                    transform: sel ? "translateY(-1px)" : "none",
+                    transition: "all 120ms",
+                  }}>
+                    <Mascot name={cname} size={44} />
+                  </div>
+                );
+              })}
             </div>
           </div>
-        </div>
-        <div style={{ marginTop: 14 }}>
-          <Progress value={(member.spent / member.budget) * 100} color="#FFF" height={14} />
-        </div>
-      </Card>
+
+          {/* Buttons */}
+          <div style={{ display: "flex", gap: 8 }}>
+            <button onClick={cancelEdit} style={{
+              flex: 1, padding: "12px 0", borderRadius: 14,
+              border: "2px solid #1a1410", boxShadow: "0 2px 0 #1a1410",
+              background: "#FFF", fontFamily: "Fredoka, sans-serif",
+              fontSize: 15, fontWeight: 600, color: "#1a1410", cursor: "pointer",
+            }}>取消</button>
+            <button onClick={saveEdit} style={{
+              flex: 2, padding: "12px 0", borderRadius: 14,
+              border: "2px solid #1a1410", boxShadow: "0 4px 0 #1a1410",
+              background: palette.primaryDeep, fontFamily: "Fredoka, sans-serif",
+              fontSize: 15, fontWeight: 600, color: "#1a1410", cursor: "pointer",
+            }}>保存 ✓</button>
+          </div>
+        </Card>
+      ) : (
+        /* Member detail card */
+        <Card color={member.color} style={{ marginBottom: 14 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
+            <Mascot name={member.creature} size={90} color={member.color} accent={member.accent} />
+            <div style={{ flex: 1 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                <div style={{ fontFamily: "Fredoka, sans-serif", fontSize: 22, fontWeight: 600, color: "#1a1410" }}>{member.name}</div>
+                <button onClick={startEdit} style={{
+                  width: 28, height: 28, borderRadius: 8, border: "1.5px solid #1a1410",
+                  background: "rgba(255,255,255,0.7)", boxShadow: "0 1px 0 #1a1410",
+                  display: "flex", alignItems: "center", justifyContent: "center",
+                  cursor: "pointer", padding: 0, fontSize: 13,
+                }}>✏️</button>
+              </div>
+              <div style={{ fontSize: 12, color: "#1a1410", opacity: 0.7, fontWeight: 700, marginTop: 2 }}>本月预算 {yuan(member.budget, 0)}</div>
+              <div style={{ display: "flex", gap: 6, marginTop: 8 }}>
+                <Chip color="#FFF">已用 {yuan(member.spent, 0)}</Chip>
+                <Chip color="#FFE08A">剩 {yuan(member.budget - member.spent, 0)}</Chip>
+              </div>
+            </div>
+          </div>
+          <div style={{ marginTop: 14 }}>
+            <Progress value={(member.spent / member.budget) * 100} color="#FFF" height={14} />
+          </div>
+        </Card>
+      )}
 
       <SectionHeader title="花在哪里" />
       <Card color="#FFF" style={{ padding: 14, marginBottom: 14 }}>
@@ -1230,7 +1356,7 @@ function FamilyScreen({ palette }) {
 
       <SectionHeader title="最近" />
       <Card color="#FFF" style={{ padding: 0, overflow: "hidden" }}>
-        {RECENT.filter(r => r.who === member.name).slice(0, 4).map((r, i, arr) => (
+        {RECENT.filter(r => r.familyId === member.id).slice(0, 4).map((r, i, arr) => (
           <div key={r.id} style={{
             display: "flex", alignItems: "center", gap: 12, padding: "12px 14px",
             borderBottom: i < arr.length - 1 ? "1.5px dashed rgba(26,20,16,0.12)" : "none",
@@ -1248,7 +1374,7 @@ function FamilyScreen({ palette }) {
             <div style={{ fontFamily: "Fredoka, sans-serif", fontSize: 15, fontWeight: 600, color: "#1a1410" }}>-{yuan(r.amount, 2)}</div>
           </div>
         ))}
-        {RECENT.filter(r => r.who === member.name).length === 0 && (
+        {RECENT.filter(r => r.familyId === member.id).length === 0 && (
           <div style={{ padding: 24, textAlign: "center", color: "rgba(26,20,16,0.5)", fontWeight: 700, fontSize: 13 }}>
             这个月还没记小账～
           </div>
@@ -1385,11 +1511,24 @@ function App() {
   const [toast, setToast] = React.useState(false);
   const palette = PALETTES[t.palette] || PALETTES.taro;
 
+  const [memberCustom, setMemberCustom] = React.useState({
+    mom:  { name: "妈妈",  creature: "Heart" },
+    dad:  { name: "爸爸",  creature: "Zoomi" },
+    kid1: { name: "小象",  creature: "Elephant" },
+    kid2: { name: "大象",  creature: "Elephant" },
+  });
+
+  const members = FAMILY.map(f => ({
+    ...f,
+    name:     memberCustom[f.id]?.name     ?? f.name,
+    creature: memberCustom[f.id]?.creature ?? f.creature,
+  }));
+
   const screens = {
-    home:     <HomeScreen palette={palette} tweaks={t} />,
-    add:      <AddScreen palette={palette} tweaks={t} onSave={() => { setToast(true); setTab("home"); }} />,
+    home:     <HomeScreen palette={palette} tweaks={t} members={members} />,
+    add:      <AddScreen palette={palette} tweaks={t} members={members} onSave={() => { setToast(true); setTab("home"); }} />,
     goals:    <GoalsScreen palette={palette} tweaks={t} />,
-    family:   <FamilyScreen palette={palette} tweaks={t} />,
+    family:   <FamilyScreen palette={palette} tweaks={t} members={members} setMemberCustom={setMemberCustom} />,
     insights: <InsightsScreen palette={palette} tweaks={t} />,
   };
 
@@ -1438,8 +1577,8 @@ function App() {
               每只对应一个分类。它们会陪着你一起花钱、攒钱。
             </div>
             <div style={{ display: "flex", gap: 2, marginTop: 8 }}>
-              {["Yumi","Zoomi","Cozy","Pip","Posy","Heart"].map(n => (
-                <Mascot key={n} name={n} size={32} />
+              {["Yumi","Zoomi","Cozy","Pip","Posy","Heart","Elephant"].map(n => (
+                <Mascot key={n} name={n} size={28} />
               ))}
             </div>
           </div>
