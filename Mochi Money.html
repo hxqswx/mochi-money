@@ -574,11 +574,11 @@ const FAMILY = [
 
 const CATEGORIES = [
   { id: "food",      name: "吃喝",   creature: "Yumi",  color: "#FFB59E", spent: 2480, budget: 3500 },
-  { id: "transport", name: "出行",   creature: "Zoomi", color: "#A8D8F0", spent: 980,  budget: 1500 },
+  { id: "transport", name: "出行",   creature: "Boba",  color: "#A8D8F0", spent: 980,  budget: 1500 },
   { id: "home",      name: "家居",   creature: "Cozy",  color: "#B8E0B5", spent: 1640, budget: 2000 },
   { id: "kids",      name: "小朋友", creature: "Pip",   color: "#FFE08A", spent: 720,  budget: 1500 },
   { id: "shop",      name: "购物",   creature: "Posy",  color: "#F2B8DC", spent: 1340, budget: 1800 },
-  { id: "health",    name: "健康",   creature: "Heart", color: "#FFB5C5", spent: 830,  budget: 1200 },
+  { id: "health",    name: "健康",   creature: "Boba",  color: "#C9B8E8", spent: 830,  budget: 1200 },
 ];
 
 const RECENT = [
@@ -830,7 +830,7 @@ function Toast({ show, palette, onHide }) {
 // ─────────────────────────────────────────────────────────────
 // HOME SCREEN
 // ─────────────────────────────────────────────────────────────
-function HomeScreen({ palette, tweaks, members, onNotif, onSettings, onViewAll }) {
+function HomeScreen({ palette, tweaks, members, setBudgetCustom, onNotif, onSettings, onViewAll }) {
   const totalBudget = members.reduce((a, f) => a + f.budget, 0);
   const totalSpent  = members.reduce((a, f) => a + f.spent,  0);
   const remaining = totalBudget - totalSpent;
@@ -925,7 +925,7 @@ function HomeScreen({ palette, tweaks, members, onNotif, onSettings, onViewAll }
       <SectionHeader title="家庭成员" sub="本月支出" />
       <div style={{ display: "flex", flexDirection: "column", gap: 10, marginBottom: 18 }}>
         {members.map(f => {
-          const fpct = (f.spent / f.budget) * 100;
+          const fpct = Math.min((f.spent / f.budget) * 100, 100);
           return (
             <Card key={f.id} color="#FFF" style={{ padding: 12, display: "flex", alignItems: "center", gap: 12 }}>
               <div style={{
@@ -936,16 +936,37 @@ function HomeScreen({ palette, tweaks, members, onNotif, onSettings, onViewAll }
                 <Mascot name={f.creature} size={48} color={f.color} accent={f.accent} />
               </div>
               <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 2 }}>
                   <div style={{ fontWeight: 800, fontSize: 15, color: "#1a1410" }}>{f.name}</div>
                   <div style={{ fontFamily: "Fredoka, sans-serif", fontSize: 16, fontWeight: 600, color: "#1a1410" }}>
                     {yuan(f.spent, 0)}
                   </div>
                 </div>
-                <div style={{ fontSize: 11, color: "rgba(26,20,16,0.55)", fontWeight: 600, marginBottom: 6 }}>
-                  预算 {yuan(f.budget, 0)} · {fpct.toFixed(0)}%
+                <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 5 }}>
+                  <span style={{ fontSize: 10, fontWeight: 700, color: "rgba(26,20,16,0.45)", flexShrink: 0 }}>预算</span>
+                  <input
+                    type="number"
+                    value={f.budget}
+                    onChange={e => {
+                      const v = Math.max(100, Number(e.target.value) || 100);
+                      setBudgetCustom(prev => ({ ...prev, [f.id]: v }));
+                    }}
+                    style={{
+                      width: 68, fontSize: 11, fontWeight: 800, color: "#1a1410",
+                      border: "1.5px solid rgba(26,20,16,0.2)", borderRadius: 6,
+                      background: "rgba(26,20,16,0.04)", padding: "1px 4px",
+                      fontFamily: "inherit", outline: "none",
+                    }}
+                  />
+                  <span style={{ fontSize: 10, fontWeight: 700, color: "rgba(26,20,16,0.45)", marginLeft: "auto" }}>{fpct.toFixed(0)}%</span>
                 </div>
-                <Progress value={fpct} color={f.color} height={7} />
+                <input
+                  type="range" min={100} max={15000} step={100}
+                  value={f.budget}
+                  onChange={e => setBudgetCustom(prev => ({ ...prev, [f.id]: Number(e.target.value) }))}
+                  style={{ width: "100%", accentColor: f.accent, marginBottom: 5, cursor: "pointer" }}
+                />
+                <Progress value={fpct} color={f.color} height={6} />
               </div>
             </Card>
           );
@@ -1644,14 +1665,20 @@ function App() {
     kid2: { name: "大象",  creature: "Elephant" },
   });
 
+  const [budgetCustom, setBudgetCustom] = React.useState({
+    mom: 4500, dad: 5200, kid1: 1800, kid2: 1200,
+  });
+
   const members = FAMILY.map(f => ({
     ...f,
     name:     memberCustom[f.id]?.name     ?? f.name,
     creature: memberCustom[f.id]?.creature ?? f.creature,
+    budget:   budgetCustom[f.id]           ?? f.budget,
   }));
 
   const screens = {
     home:     <HomeScreen palette={palette} tweaks={t} members={members}
+                setBudgetCustom={setBudgetCustom}
                 onNotif={() => setOverlay("notif")}
                 onSettings={() => setOverlay("settings")}
                 onViewAll={() => setOverlay("viewAll")} />,
@@ -1782,8 +1809,8 @@ function App() {
               每只对应一个分类。它们会陪着你一起花钱、攒钱。
             </div>
             <div style={{ display: "flex", gap: 2, marginTop: 8 }}>
-              {["Yumi","Zoomi","Cozy","Pip","Posy","Heart","Elephant"].map(n => (
-                <Mascot key={n} name={n} size={28} />
+              {["Yumi","Boba","Cozy","Pip","Posy","Boba"].map((n, i) => (
+                <Mascot key={i} name={n} size={28} color={i === 5 ? "#C9B8E8" : undefined} accent={i === 5 ? "#9B78D4" : undefined} />
               ))}
             </div>
           </div>
