@@ -140,6 +140,25 @@ function useTweaks(defaults) {
   return [values, setTweak];
 }
 
+function useLocalStorage(key, initial) {
+  const [value, setValue] = React.useState(() => {
+    try {
+      const stored = localStorage.getItem(key);
+      return stored !== null ? JSON.parse(stored) : initial;
+    } catch { return initial; }
+  });
+  const set = React.useCallback((updater) => {
+    setValue(prev => {
+      const next = typeof updater === 'function' ? updater(prev) : updater;
+      try { localStorage.setItem(key, JSON.stringify(next)); } catch {}
+      return next;
+    });
+  }, [key]);
+  return [value, set];
+}
+
+const round2 = n => Math.round((n + Number.EPSILON) * 100) / 100;
+
 function TweaksPanel({ title = 'Tweaks', children }) {
   const [open, setOpen] = React.useState(false);
   const dragRef = React.useRef(null);
@@ -581,16 +600,16 @@ const CATEGORIES = [
   { id: "health",    name: "健康",   creature: "Boba",  color: "#C9B8E8", spent: 830,  budget: 1200 },
 ];
 
-const RECENT = [
-  { id: 1, familyId: "mom",  cat: "食物超市", amount: 186.50, time: "今天 18:42", creature: "Yumi",  color: "#FFB59E", note: "晚餐食材" },
-  { id: 2, familyId: "dad",  cat: "加油站",   amount: 320.00, time: "今天 09:15", creature: "Zoomi", color: "#A8D8F0", note: "" },
-  { id: 3, familyId: "kid1", cat: "文具",     amount: 48.00,  time: "昨天 16:30", creature: "Pip",   color: "#FFE08A", note: "笔记本和铅笔" },
-  { id: 4, familyId: "mom",  cat: "咖啡",     amount: 32.00,  time: "昨天 10:08", creature: "Yumi",  color: "#FFB59E", note: "" },
-  { id: 5, familyId: "dad",  cat: "电费",     amount: 245.30, time: "前天",       creature: "Cozy",  color: "#B8E0B5", note: "本月" },
-  { id: 6, familyId: "kid2", cat: "玩具",     amount: 89.90,  time: "前天",       creature: "Posy",  color: "#F2B8DC", note: "积木" },
+const SEED_TX = [
+  { id: 1, familyId: "mom",  catId: "food",      cat: "食物超市", amount: 186.50, time: "今天 18:42", creature: "Yumi",  color: "#FFB59E", note: "晚餐食材" },
+  { id: 2, familyId: "dad",  catId: "transport",  cat: "加油站",   amount: 320.00, time: "今天 09:15", creature: "Boba",  color: "#A8D8F0", note: "" },
+  { id: 3, familyId: "kid1", catId: "kids",       cat: "文具",     amount: 48.00,  time: "昨天 16:30", creature: "Pip",   color: "#FFE08A", note: "笔记本和铅笔" },
+  { id: 4, familyId: "mom",  catId: "food",       cat: "咖啡",     amount: 32.00,  time: "昨天 10:08", creature: "Yumi",  color: "#FFB59E", note: "" },
+  { id: 5, familyId: "dad",  catId: "home",       cat: "电费",     amount: 245.30, time: "前天",       creature: "Cozy",  color: "#B8E0B5", note: "本月" },
+  { id: 6, familyId: "kid2", catId: "shop",       cat: "玩具",     amount: 89.90,  time: "前天",       creature: "Posy",  color: "#F2B8DC", note: "积木" },
 ];
 
-const GOALS = [
+const SEED_GOALS = [
   { id: 1, name: "海边度假",      target: 12000, saved: 7840, creature: "Zoomi", color: "#A8D8F0", days: 64 },
   { id: 2, name: "新冰箱",        target: 6800,  saved: 6120, creature: "Cozy",  color: "#B8E0B5", days: 12 },
   { id: 3, name: "小米的钢琴课",  target: 4800,  saved: 1920, creature: "Pip",   color: "#FFE08A", days: 92 },
@@ -828,9 +847,98 @@ function Toast({ show, palette, onHide }) {
 }
 
 // ─────────────────────────────────────────────────────────────
+// TRANSACTION ROW — with inline edit (amount ±, delete)
+// ─────────────────────────────────────────────────────────────
+function TxRow({ tx, members, onUpdate, onDelete, dense }) {
+  const [expanded, setExpanded] = React.useState(false);
+  const [editAmt, setEditAmt] = React.useState(String(tx.amount));
+
+  const commit = () => {
+    const v = round2(parseFloat(editAmt) || 0);
+    if (v !== tx.amount) onUpdate({ ...tx, amount: v });
+    setEditAmt(String(v));
+  };
+  const nudge = (delta) => {
+    const v = round2(Math.max(0, tx.amount + delta));
+    setEditAmt(String(v));
+    onUpdate({ ...tx, amount: v });
+  };
+  const memberName = members.find(f => f.id === tx.familyId)?.name || "";
+
+  return (
+    <div style={{ borderBottom: "1.5px dashed rgba(26,20,16,0.12)" }}>
+      <div onClick={() => setExpanded(e => !e)} style={{
+        display: "flex", alignItems: "center", gap: 12,
+        padding: dense ? "8px 14px" : "12px 14px", cursor: "pointer",
+      }}>
+        <div style={{
+          width: 40, height: 40, borderRadius: 12, background: tx.color,
+          border: "2px solid #1a1410", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0,
+        }}>
+          <Mascot name={tx.creature} size={34} />
+        </div>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ fontWeight: 800, fontSize: 13, color: "#1a1410" }}>{tx.cat}</div>
+          <div style={{ fontSize: 11, color: "rgba(26,20,16,0.55)", fontWeight: 600 }}>
+            {memberName} · {tx.time}{tx.note && ` · ${tx.note}`}
+          </div>
+        </div>
+        <div style={{ fontFamily: "Fredoka, sans-serif", fontSize: 15, fontWeight: 600, color: "#1a1410", flexShrink: 0 }}>
+          -{yuan(tx.amount)}
+        </div>
+        <div style={{ fontSize: 11, color: "rgba(26,20,16,0.3)", marginLeft: 2 }}>{expanded ? "▲" : "▼"}</div>
+      </div>
+      {expanded && (
+        <div style={{
+          display: "flex", alignItems: "center", gap: 6,
+          padding: "8px 14px 12px", background: "rgba(26,20,16,0.03)",
+        }}>
+          <button onClick={() => nudge(-10)} style={{
+            padding: "4px 10px", borderRadius: 8, border: "1.5px solid #1a1410",
+            boxShadow: "0 2px 0 #1a1410", background: "#FFF", fontWeight: 800,
+            fontSize: 14, cursor: "pointer", color: "#1a1410",
+          }}>-10</button>
+          <span style={{ fontSize: 11, fontWeight: 700, color: "rgba(26,20,16,0.5)" }}>¥</span>
+          <input
+            type="number"
+            value={editAmt}
+            onChange={e => setEditAmt(e.target.value)}
+            onBlur={commit}
+            style={{
+              width: 80, padding: "4px 6px", borderRadius: 8,
+              border: "1.5px solid #1a1410", boxShadow: "0 2px 0 #1a1410",
+              fontSize: 14, fontWeight: 800, fontFamily: "inherit",
+              color: "#1a1410", background: "#FFF", outline: "none", textAlign: "center",
+            }}
+          />
+          <button onClick={() => nudge(10)} style={{
+            padding: "4px 10px", borderRadius: 8, border: "1.5px solid #1a1410",
+            boxShadow: "0 2px 0 #1a1410", background: "#FFF", fontWeight: 800,
+            fontSize: 14, cursor: "pointer", color: "#1a1410",
+          }}>+10</button>
+          <button onClick={() => nudge(-50)} style={{
+            padding: "4px 8px", borderRadius: 8, border: "1.5px solid rgba(26,20,16,0.3)",
+            background: "#FFF", fontSize: 11, fontWeight: 700, cursor: "pointer", color: "rgba(26,20,16,0.5)",
+          }}>-50</button>
+          <button onClick={() => nudge(50)} style={{
+            padding: "4px 8px", borderRadius: 8, border: "1.5px solid rgba(26,20,16,0.3)",
+            background: "#FFF", fontSize: 11, fontWeight: 700, cursor: "pointer", color: "rgba(26,20,16,0.5)",
+          }}>+50</button>
+          <div style={{ flex: 1 }} />
+          <button onClick={() => { onDelete(tx.id); setExpanded(false); }} style={{
+            padding: "4px 10px", borderRadius: 8, border: "1.5px solid #FF7070",
+            background: "#FFF", fontSize: 13, cursor: "pointer", color: "#FF7070", fontWeight: 800,
+          }}>删除</button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────
 // HOME SCREEN
 // ─────────────────────────────────────────────────────────────
-function HomeScreen({ palette, tweaks, members, setBudgetCustom, onNotif, onSettings, onViewAll }) {
+function HomeScreen({ palette, tweaks, members, setBudgetCustom, transactions, setTransactions, onNotif, onSettings, onViewAll }) {
   const totalBudget = members.reduce((a, f) => a + f.budget, 0);
   const totalSpent  = members.reduce((a, f) => a + f.spent,  0);
   const remaining = totalBudget - totalSpent;
@@ -975,28 +1083,17 @@ function HomeScreen({ palette, tweaks, members, setBudgetCustom, onNotif, onSett
 
       <SectionHeader title="最近的小账" right={<span onClick={onViewAll} style={{ fontSize: 12, fontWeight: 700, color: palette.primaryDeep, cursor: "pointer" }}>查看全部 →</span>} />
       <Card color="#FFF" style={{ padding: 0, overflow: "hidden" }}>
-        {RECENT.slice(0, 5).map((r, i) => (
-          <div key={r.id} style={{
-            display: "flex", alignItems: "center", gap: 12, padding: tweaks.denseList ? "8px 14px" : "12px 14px",
-            borderBottom: i < 4 ? "1.5px dashed rgba(26,20,16,0.12)" : "none",
-          }}>
-            <div style={{
-              width: 40, height: 40, borderRadius: 12, background: r.color,
-              border: "2px solid #1a1410", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0,
-            }}>
-              <Mascot name={r.creature} size={34} />
-            </div>
-            <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{ fontWeight: 800, fontSize: 13, color: "#1a1410" }}>{r.cat}</div>
-              <div style={{ fontSize: 11, color: "rgba(26,20,16,0.55)", fontWeight: 600 }}>
-                {members.find(f => f.id === r.familyId)?.name} · {r.time}{r.note && ` · ${r.note}`}
-              </div>
-            </div>
-            <div style={{ fontFamily: "Fredoka, sans-serif", fontSize: 16, fontWeight: 600, color: "#1a1410" }}>
-              -{yuan(r.amount, 2)}
-            </div>
-          </div>
+        {transactions.slice(0, 5).map(r => (
+          <TxRow key={r.id} tx={r} members={members} dense={tweaks.denseList}
+            onUpdate={u => setTransactions(prev => prev.map(t => t.id === u.id ? u : t))}
+            onDelete={id => setTransactions(prev => prev.filter(t => t.id !== id))}
+          />
         ))}
+        {transactions.length === 0 && (
+          <div style={{ padding: "20px 14px", textAlign: "center", fontSize: 13, color: "rgba(26,20,16,0.4)", fontWeight: 700 }}>
+            还没有账单，去记一笔吧 ✨
+          </div>
+        )}
       </Card>
     </div>
   );
@@ -1149,8 +1246,7 @@ function AddScreen({ palette, tweaks, onSave, members }) {
 const GOAL_CREATURES = ["Zoomi","Cozy","Pip","Yumi","Heart","Boba","Posy","Elephant"];
 const GOAL_COLORS = ["#A8D8F0","#B8E0B5","#FFE08A","#FFB59E","#FFB5C5","#F9C9A8","#F2B8DC","#FFAAAA"];
 
-function GoalsScreen({ palette }) {
-  const [goals, setGoals] = React.useState(GOALS);
+function GoalsScreen({ palette, goals, setGoals }) {
   const [adding, setAdding] = React.useState(false);
   const [newName, setNewName] = React.useState("");
   const [newTarget, setNewTarget] = React.useState("");
@@ -1658,32 +1754,55 @@ function App() {
   const [overlay, setOverlay] = React.useState(null);
   const palette = PALETTES[t.palette] || PALETTES.taro;
 
-  const [memberCustom, setMemberCustom] = React.useState({
+  const [memberCustom, setMemberCustom] = useLocalStorage('mm_members', {
     mom:  { name: "妈妈",  creature: "Heart" },
     dad:  { name: "爸爸",  creature: "Zoomi" },
     kid1: { name: "小象",  creature: "Elephant" },
     kid2: { name: "大象",  creature: "Elephant" },
   });
 
-  const [budgetCustom, setBudgetCustom] = React.useState({
+  const [budgetCustom, setBudgetCustom] = useLocalStorage('mm_budget', {
     mom: 4500, dad: 5200, kid1: 1800, kid2: 1200,
   });
+
+  const [transactions, setTransactions] = useLocalStorage('mm_tx', SEED_TX);
+  const [goals, setGoals] = useLocalStorage('mm_goals', SEED_GOALS);
 
   const members = FAMILY.map(f => ({
     ...f,
     name:     memberCustom[f.id]?.name     ?? f.name,
     creature: memberCustom[f.id]?.creature ?? f.creature,
     budget:   budgetCustom[f.id]           ?? f.budget,
+    spent:    round2(transactions.filter(tx => tx.familyId === f.id).reduce((a, tx) => a + tx.amount, 0)),
   }));
+
+  const handleSave = (data) => {
+    const cat = CATEGORIES.find(c => c.id === data.cat);
+    const newTx = {
+      id: Date.now(),
+      familyId: data.who,
+      catId: data.cat,
+      cat: cat?.name || data.cat,
+      amount: round2(parseFloat(data.amount) || 0),
+      time: new Date().toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit', hour12: false }) + ' 刚刚',
+      creature: cat?.creature || "Yumi",
+      color: cat?.color || "#FFB59E",
+      note: data.note,
+    };
+    setTransactions(prev => [newTx, ...prev]);
+    setToast(true);
+    setTab("home");
+  };
 
   const screens = {
     home:     <HomeScreen palette={palette} tweaks={t} members={members}
                 setBudgetCustom={setBudgetCustom}
+                transactions={transactions} setTransactions={setTransactions}
                 onNotif={() => setOverlay("notif")}
                 onSettings={() => setOverlay("settings")}
                 onViewAll={() => setOverlay("viewAll")} />,
-    add:      <AddScreen palette={palette} tweaks={t} members={members} onSave={() => { setToast(true); setTab("home"); }} />,
-    goals:    <GoalsScreen palette={palette} tweaks={t} />,
+    add:      <AddScreen palette={palette} tweaks={t} members={members} onSave={handleSave} />,
+    goals:    <GoalsScreen palette={palette} tweaks={t} goals={goals} setGoals={setGoals} />,
     family:   <FamilyScreen palette={palette} tweaks={t} members={members} setMemberCustom={setMemberCustom} />,
     insights: <InsightsScreen palette={palette} tweaks={t} />,
   };
@@ -1766,28 +1885,17 @@ function App() {
           <PhoneOverlay open={overlay === "viewAll"} onClose={() => setOverlay(null)} title="全部账单" maxHeight="92%">
             <div style={{ padding: "0 14px 28px" }}>
               <Card color="#FFF" style={{ padding: 0, overflow: "hidden" }}>
-                {RECENT.map((r, i) => (
-                  <div key={r.id} style={{
-                    display: "flex", alignItems: "center", gap: 12, padding: "12px 14px",
-                    borderBottom: i < RECENT.length - 1 ? "1.5px dashed rgba(26,20,16,0.12)" : "none",
-                  }}>
-                    <div style={{
-                      width: 40, height: 40, borderRadius: 12, background: r.color,
-                      border: "2px solid #1a1410", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0,
-                    }}>
-                      <Mascot name={r.creature} size={34} />
-                    </div>
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{ fontWeight: 800, fontSize: 13, color: "#1a1410" }}>{r.cat}</div>
-                      <div style={{ fontSize: 11, color: "rgba(26,20,16,0.55)", fontWeight: 600 }}>
-                        {members.find(f => f.id === r.familyId)?.name} · {r.time}{r.note && ` · ${r.note}`}
-                      </div>
-                    </div>
-                    <div style={{ fontFamily: "Fredoka, sans-serif", fontSize: 16, fontWeight: 600, color: "#1a1410", flexShrink: 0 }}>
-                      -{yuan(r.amount)}
-                    </div>
-                  </div>
+                {transactions.map(r => (
+                  <TxRow key={r.id} tx={r} members={members}
+                    onUpdate={u => setTransactions(prev => prev.map(t => t.id === u.id ? u : t))}
+                    onDelete={id => setTransactions(prev => prev.filter(t => t.id !== id))}
+                  />
                 ))}
+                {transactions.length === 0 && (
+                  <div style={{ padding: "20px 14px", textAlign: "center", fontSize: 13, color: "rgba(26,20,16,0.4)", fontWeight: 700 }}>
+                    还没有账单 ✨
+                  </div>
+                )}
               </Card>
             </div>
           </PhoneOverlay>
